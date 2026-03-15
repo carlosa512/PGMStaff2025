@@ -1,6 +1,6 @@
 # NFL Coaching Staff Reference — March 15, 2026
 
-This document tracks confirmed NFL coaching staffs as of **March 15, 2026**, based on publicly reported hires and retentions. Used as a reference for `PGMStaff_2025_Final.json` updates to ensure all in-game entries reflect real coaches.
+This document tracks confirmed NFL coaching staffs as of **March 15, 2026**, based on publicly reported hires and retentions. Used as a reference for `PGMStaff_2026_Final.json` updates to ensure all in-game entries reflect real coaches.
 
 **Last updated:** 2026-03-15
 **Key sources:** NFL.com coaching/GM tracker, team official announcements, Wikipedia list of current NFL staffs, Pro Football Rumors, Yahoo Sports coordinator updates
@@ -172,7 +172,7 @@ This document tracks confirmed NFL coaching staffs as of **March 15, 2026**, bas
 ## Notes for Future Updates
 
 - **Free Agent pool** ST coaches remain fictional (by design) — 16 FA entries unchanged.
-- **OC/DC/HC** roles have real names in most cases from prior update rounds (see `update_staff_2026.py` and `update_staff_2026_round2.py`).
+- **OC/DC/HC** roles have real names in most cases from prior update rounds (see `scripts/update_staff_2026.py` and `scripts/update_staff_2026_round2.py`).
 - When verifying future changes, cross-reference against:
   - [Wikipedia — List of current NFL special teams coordinators](https://en.wikipedia.org/wiki/List_of_current_NFL_special_teams_coordinators)
   - [NFL.com Coaching/GM Tracker](https://www.nfl.com/news/nfl-coaching-gm-tracker-latest-news-interviews-developments-2026-hiring-cycle)
