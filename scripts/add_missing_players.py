@@ -421,11 +421,33 @@ def main():
                 dr, dp = None, 0
             draft_by_name[name] = {"draft_round": dr, "draft_pick": dp}
 
+    # Build per-team cut thresholds from current file (rating of 53rd player per team)
+    # New players whose rating falls below this threshold go straight to Free Agent.
+    NFL_TEAMS = {
+        "ARI","ATL","BAL","BUF","CAR","CHI","CIN","CLE","DAL","DEN",
+        "DET","GB","HOU","IND","JAX","KC","LAC","LAR","LV","MIA",
+        "MIN","NE","NO","NYG","NYJ","PHI","PIT","SEA","SF","TB","TEN","WAS",
+    }
+    ROSTER_LIMIT = 53
+    team_ratings = {}
+    for p in pgm:
+        if p["teamID"] in NFL_TEAMS:
+            team_ratings.setdefault(p["teamID"], []).append(p["rating"])
+    # Threshold = rating of the lowest kept player (53rd slot)
+    team_threshold = {}
+    for team, ratings in team_ratings.items():
+        ratings_sorted = sorted(ratings, reverse=True)
+        if len(ratings_sorted) >= ROSTER_LIMIT:
+            team_threshold[team] = ratings_sorted[ROSTER_LIMIT - 1]
+        else:
+            team_threshold[team] = 0  # team has room, no threshold
+
     # Load nflverse rosters and identify missing players
     new_entries = []
     skipped_pos = 0
     already_present = 0
     fuzzy_skipped = 0
+    sent_to_fa = 0
 
     with open(NF_ROSTERS) as f:
         for row in csv.DictReader(f):
@@ -450,12 +472,22 @@ def main():
             # Build entry
             draft_info = draft_by_name.get(name, {"draft_round": None, "draft_pick": 0})
             entry = build_player(row, draft_info, rating_table)
+
+            # If the team is already at 53 and this player's rating is below the cut
+            # threshold, add them as a Free Agent rather than bloating the roster.
+            team = entry["teamID"]
+            threshold = team_threshold.get(team, 0)
+            if team in NFL_TEAMS and threshold > 0 and entry["rating"] < threshold:
+                entry["teamID"] = "Free Agent"
+                sent_to_fa += 1
+
             new_entries.append(entry)
 
     print(f"\nAlready in PGM:     {already_present}")
     print(f"Skipped (LS/FB):    {skipped_pos}")
     print(f"Fuzzy-matched:      {fuzzy_skipped}")
     print(f"New players to add: {len(new_entries)}")
+    print(f"  → Added as FA (below cut threshold): {sent_to_fa}")
 
     # Verify no UUID collisions
     existing_idens = {p["iden"] for p in pgm}
