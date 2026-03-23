@@ -142,6 +142,15 @@ STANDARD_BEARDS = {
     "Beard4a", "Beard5a", "Beard6a",
 }
 
+# Standard pool grey/white hair values that look unrealistic on young players.
+# Hair5 = grey, Hair6 = white/silver. Only fix standard pool (not extended variants).
+YOUNG_HAIR_FIX = {
+    "Hair5a", "Hair5b",                        # grey
+    "Hair6a", "Hair6b", "Hair6c", "Hair6d",    # white/silver
+}
+DARK_HAIRS = ["Hair1a", "Hair1b", "Hair1c", "Hair1d", "Hair1e"]
+GREYING_HAIRS = ["Hair3a", "Hair3b", "Hair3c", "Hair3d"]
+
 
 def get_tone_group(component_value):
     """Extract skin tone group number (1-5) from a component like 'Head5a' or 'Nose2b'."""
@@ -210,6 +219,23 @@ def fix_appearance(player):
             new_beard = random.choice(beard_pool)
             changes.append(f"Beard: {beard} → {new_beard}")
             app[3] = new_beard
+
+    # Fix unrealistic grey/white hair on players (white hair = coaches only)
+    age = player.get("age", 25)
+    hair = app[2]   # index 2
+    if hair in YOUNG_HAIR_FIX:
+        if age < 30:
+            # Under 30: dark hair
+            random.seed(name + "hairfix")
+            new_hair = random.choice(DARK_HAIRS)
+            changes.append(f"Hair: {hair} → {new_hair} (age {age})")
+            app[2] = new_hair
+        elif hair.startswith("Hair6"):
+            # 30+: white hair → salt-and-pepper (Hair6 is for coaches, not players)
+            random.seed(name + "hairfix")
+            new_hair = random.choice(GREYING_HAIRS)
+            changes.append(f"Hair: {hair} → {new_hair} (age {age})")
+            app[2] = new_hair
 
     return len(changes), changes
 
