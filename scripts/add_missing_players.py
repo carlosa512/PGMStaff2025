@@ -33,6 +33,7 @@ REPO_ROOT = __import__("os").path.join(__import__("os").path.dirname(__file__), 
 ROSTER_FILE  = f"{REPO_ROOT}/PGMRoster_2026_Final.json"
 NF_ROSTERS   = f"{REPO_ROOT}/reference/nflverse_rosters_2026.csv"
 NF_PLAYERS   = f"{REPO_ROOT}/reference/nflverse_players.csv"
+NF_DRAFT     = f"{REPO_ROOT}/reference/nflverse_draft_picks.csv"
 
 TEAM_MAP  = {"LA": "LAR"}
 SKIP_POS  = {"LS", "FB"}
@@ -272,12 +273,22 @@ def build_player(row, draft_info, rating_table):
 
     draft_round = draft_info.get("draft_round")
     draft_pick  = draft_info.get("draft_pick", 0)
+    w_av        = draft_info.get("w_av", 0.0)
 
-    # Rating
+    # Rating — w_av (PFR career value, 0-44) is the heavy primary signal for veterans.
+    # Overall pick number gives more granular draft pedigree than round alone.
     base = lookup_rating(rating_table, pos, years_exp)
-    jitter = random.randint(-5, 5)
-    round_bonus = 6 if draft_round == 1 else (3 if draft_round == 2 else 0)
-    rating = max(68, min(92, base + jitter + round_bonus))
+    jitter = random.randint(-3, 3)
+    # w_av: scale 0-44 → 0-24 bonus (dominant signal for veterans)
+    wav_bonus = min(24, int(w_av * 24 / 44)) if w_av and w_av > 0 else 0
+    # Pick bonus: overall pick 1→+10, pick 260→+0 (replaces coarse round-only bonus)
+    if draft_pick and draft_pick > 0:
+        pick_bonus = max(0, 10 - int(draft_pick / 26))
+    elif draft_round:
+        pick_bonus = 6 if draft_round == 1 else (3 if draft_round == 2 else 0)
+    else:
+        pick_bonus = 0
+    rating = max(60, min(95, base + wav_bonus + pick_bonus + jitter))
 
     # Potential: higher for young players
     yr_int = int(float(years_exp)) if years_exp else 0
@@ -407,7 +418,19 @@ def main():
     rating_table = build_rating_table(pgm_with_exp)
     print(f"Rating calibration table: {len(rating_table)} buckets")
 
-    # Load nflverse draft data for pick numbers
+    # Load w_av (PFR weighted career value) from draft picks — keyed by gsis_id
+    wav_by_gsis = {}
+    with open(NF_DRAFT) as f:
+        for row in csv.DictReader(f):
+            gsis = row.get("gsis_id", "").strip()
+            if not gsis:
+                continue
+            try:
+                wav_by_gsis[gsis] = float(row["w_av"]) if row.get("w_av") else 0.0
+            except (ValueError, TypeError):
+                wav_by_gsis[gsis] = 0.0
+
+    # Load nflverse draft data for pick numbers + w_av via gsis_id join
     draft_by_name = {}
     with open(NF_PLAYERS) as f:
         for row in csv.DictReader(f):
@@ -419,7 +442,9 @@ def main():
                 dp = int(float(row["draft_pick"]))  if row.get("draft_pick")  else 0
             except Exception:
                 dr, dp = None, 0
-            draft_by_name[name] = {"draft_round": dr, "draft_pick": dp}
+            gsis = row.get("gsis_id", "").strip()
+            w_av = wav_by_gsis.get(gsis, 0.0)
+            draft_by_name[name] = {"draft_round": dr, "draft_pick": dp, "w_av": w_av}
 
     # Build per-team cut thresholds from current file (rating of 53rd player per team)
     # New players whose rating falls below this threshold go straight to Free Agent.

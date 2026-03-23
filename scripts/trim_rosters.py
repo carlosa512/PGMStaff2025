@@ -39,8 +39,8 @@ POS_MINIMUMS = {
     "DT":  2,
     "OLB": 2,
     "MLB": 1,
-    "CB":  3,
-    "S":   2,
+    "CB":  4,
+    "S":   3,
     "K":   1,
     "P":   1,
 }
@@ -124,6 +124,13 @@ def main():
     for p in pgm:
         if p["teamID"] in NFL_TEAMS and p["iden"] not in kept_idens:
             p["teamID"] = "Free Agent"
+
+    # Prune low-rated Free Agents to keep the pool clean
+    FA_RATING_FLOOR = 55
+    fa_before = sum(1 for p in pgm if p["teamID"] == "Free Agent")
+    pgm = [p for p in pgm if not (p["teamID"] == "Free Agent" and p["rating"] < FA_RATING_FLOOR)]
+    fa_pruned = fa_before - sum(1 for p in pgm if p["teamID"] == "Free Agent")
+    print(f"\nFree Agent pool: {fa_before} → {fa_before - fa_pruned} (pruned {fa_pruned} rated < {FA_RATING_FLOOR})")
 
     # Save
     with open(ROSTER_FILE, "w") as f:
