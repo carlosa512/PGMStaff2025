@@ -72,9 +72,11 @@ Mismatched groups (e.g., Head5a + Nose1b) cause **face clipping/rendering glitch
 
 ### Appearance accuracy rules
 
-- Head is the **authoritative** skin tone indicator — when fixing mismatches, trust the Head and update Nose/Mouth/Eyebrows to match
+- Head is the **authoritative** skin tone indicator — when fixing mismatches, trust the Head and update Nose/Mouth/Eyebrows/Beard to match
 - For star players (OVR 75+), verify the Head tone group matches the real player's likeness
-- Hair and Beard use a different numbering system (hair color, not skin tone) and are not tone-constrained
+- Hair uses a different numbering system (hair color, not skin tone) and is not tone-constrained
+- **Beards ARE tone-sensitive** despite using different numbering — Beard models contain skin-textured polygons. Data shows Head groups 4-5 use Beard1 variants 92-93% of the time. Beard4-6 on lighter skin and Beard2-6 on darker skin cause visible discoloration. The fix script constrains beards to statistically common pools per head group.
+- Only **standard pool beards** (Beard1a-e, Beard2a-b, etc.) are fixed — extended variants (Beard2r, Beard5h) from original game data are left untouched
 - The `rand_appearance()` function in `add_missing_players.py` seeds on player name for deterministic results
 
 ---
@@ -123,9 +125,17 @@ Each position has specific "active" stats that get non-zero values. All other st
 ### Mental stat baselines
 
 **All positions** now receive non-zero values for intelligence, vision, decisions, and discipline:
-- Derived from OVR: `max(30, min(75, rating - 15 + jitter))`
-- These are lower than primary position stats but prevent the in-game OVR from being dragged down to ~40
+- Derived from OVR: `max(40, min(90, rating - 5 + jitter))`
 - If a mental stat is already a primary stat for the position (e.g., intelligence for QB), it keeps its full value
+- Overwrites existing values if below the computed baseline
+
+### Secondary stat baselines
+
+**All gameplay stats** are now set to non-zero values to prevent the game engine from dragging down in-game OVR:
+- Formula: `max(40, min(90, rating - 5 + jitter))` — same as mental stats
+- Only `kickAccuracy` stays at 0 for non-K/P positions
+- Overwrites existing values if below the computed baseline
+- This was added because the game engine uses ALL stats in its OVR formula; having 14+ stats at 0 was causing 40 OVR displays for players with `rating` 60-75
 
 ---
 
@@ -136,7 +146,7 @@ Each position has specific "active" stats that get non-zero values. All other st
 | `scripts/pull_nflverse_rosters.py` | Pull fresh reference data from nflverse |
 | `scripts/add_missing_players.py` | Add NFL players missing from roster (uses nflverse data) |
 | `scripts/fix_ratings.py` | Bump <55 to 55, re-rate 68-floor artifacts using w_av formula |
-| `scripts/fix_appearances_and_ratings.py` | Fix appearance clipping (tone mismatches), add mental stat baselines |
+| `scripts/fix_appearances_and_ratings.py` | Fix appearance clipping (tone + beard mismatches), boost mental + secondary stats |
 | `scripts/trim_rosters.py` | Enforce 53-man roster limits, prune low-rated FAs |
 | `scripts/update_roster_2026.py` | Apply offseason moves (trades, FA signings, cuts) |
 | `scripts/update_appearances.py` | Manual appearance corrections by player name |

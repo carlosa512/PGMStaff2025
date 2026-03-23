@@ -3,18 +3,19 @@ Fix Appearances, Ratings, and All Stats
 ========================================
 Addresses four issues in PGMRoster_2026_Final.json:
 
-1. APPEARANCE CLIPPING: Players with Head/Nose/Mouth/Eyebrows skin-tone group
-   mismatches. Fixes by aligning Nose, Mouth, Eyebrows to match the Head group.
+1. APPEARANCE CLIPPING: Players with Head/Nose/Mouth/Eyebrows/Beard skin-tone group
+   mismatches. Fixes by aligning Nose, Mouth, Eyebrows, and Beard to match Head group.
+   Beards with extended variants (Beard2r, etc.) are left untouched.
 
 2. LOW OVR: Active roster players below 55 are bumped to 55 with stats recalculated.
    Ensures potential >= rating for all players (fixes Future Growth = 0).
 
-3. MENTAL STATS TOO LOW: Boosts intelligence, vision, decisions, discipline to
-   rating-5 baseline (was rating-15). Overwrites if current value is below baseline.
+3. MENTAL STATS: Boosts intelligence, vision, decisions, discipline to
+   rating-5 baseline (floor 40, cap 90). Overwrites if current value is below baseline.
 
-4. SECONDARY STATS AT ZERO: The game engine uses ALL stats for OVR calculation.
-   Sets every remaining gameplay stat to a non-zero baseline (rating-15, floor 40)
-   to prevent 0-valued stats from dragging down in-game OVR.
+4. SECONDARY STATS: The game engine uses ALL stats for OVR calculation.
+   Sets every remaining gameplay stat to rating-5 baseline (floor 40, cap 90).
+   Overwrites existing values if below the computed baseline.
 
 Usage:
     python scripts/fix_appearances_and_ratings.py
@@ -120,6 +121,27 @@ EYEBROWS_BY_GROUP = {
     5: ["Eyebrows5a", "Eyebrows5b"],
 }
 
+# Beard pools by head group — data shows Head groups 4-5 overwhelmingly use Beard1 (92-93%),
+# while Head groups 1-3 use Beard1-3 (75-85%). Beard4-6 are rare and often cause visual
+# skin-tone mismatches. Only fix standard pool beards (not extended variants like Beard2r).
+BEARD_BY_GROUP = {
+    1: ["Beard1a", "Beard1b", "Beard1c", "Beard1d", "Beard1e",
+        "Beard2a", "Beard2b", "Beard3a", "Beard3b"],
+    2: ["Beard1a", "Beard1b", "Beard1c", "Beard1d", "Beard1e",
+        "Beard2a", "Beard2b", "Beard3a", "Beard3b"],
+    3: ["Beard1a", "Beard1b", "Beard1c", "Beard1d", "Beard1e",
+        "Beard2a", "Beard2b", "Beard3a", "Beard3b"],
+    4: ["Beard1a", "Beard1b", "Beard1c", "Beard1d", "Beard1e"],
+    5: ["Beard1a", "Beard1b", "Beard1c", "Beard1d", "Beard1e"],
+}
+
+# Standard pool beard values (only fix these, skip extended variants)
+STANDARD_BEARDS = {
+    "Beard1a", "Beard1b", "Beard1c", "Beard1d", "Beard1e",
+    "Beard2a", "Beard2b", "Beard3a", "Beard3b",
+    "Beard4a", "Beard5a", "Beard6a",
+}
+
 
 def get_tone_group(component_value):
     """Extract skin tone group number (1-5) from a component like 'Head5a' or 'Nose2b'."""
@@ -178,6 +200,16 @@ def fix_appearance(player):
     if changed:
         changes.append(f"Eyebrows: {brows} → {new_brows}")
         app[4] = new_brows
+
+    # Fix Beard (only standard pool beards — skip extended variants like Beard2r)
+    beard = app[3]   # index 3
+    if beard in STANDARD_BEARDS:
+        beard_pool = BEARD_BY_GROUP.get(head_group)
+        if beard_pool and beard not in beard_pool:
+            random.seed(name + "beard" + beard)
+            new_beard = random.choice(beard_pool)
+            changes.append(f"Beard: {beard} → {new_beard}")
+            app[3] = new_beard
 
     return len(changes), changes
 
@@ -275,14 +307,14 @@ def add_secondary_baselines(p):
             continue
 
         current = p.get(stat, 0)
-        if current != 0:
-            continue  # already has a value
 
-        # Secondary baseline: rating - 15 with jitter, floor 40, ceiling 80
-        random.seed(name + stat + "secondary")
-        baseline = max(40, min(80, rating - 15 + random.randint(-3, 3)))
-        p[stat] = baseline
-        changes.append(f"{stat}: 0 → {baseline}")
+        # Secondary baseline: rating - 5 with jitter, floor 40, ceiling 90
+        random.seed(name + stat + "secondary2")
+        baseline = max(40, min(90, rating - 5 + random.randint(-3, 3)))
+
+        if current < baseline:
+            p[stat] = baseline
+            changes.append(f"{stat}: {current} → {baseline}")
 
     return changes
 
@@ -417,7 +449,7 @@ def main():
         print(f"  ... and {len(mental_details) - 30} more")
 
     print(f"\n{'='*60}")
-    print(f"SECONDARY STAT BASELINES ADDED: {secondary_stat_fixes} players")
+    print(f"SECONDARY STAT BASELINES BOOSTED: {secondary_stat_fixes} players")
     print(f"{'='*60}")
     for line in secondary_details[:30]:
         print(line)
