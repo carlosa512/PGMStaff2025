@@ -220,18 +220,18 @@ def fix_appearance(player):
             changes.append(f"Beard: {beard} → {new_beard}")
             app[3] = new_beard
 
-    # Fix unrealistic grey/white hair on young players
+    # Fix unrealistic grey/white hair on players (white hair = coaches only)
     age = player.get("age", 25)
     hair = app[2]   # index 2
     if hair in YOUNG_HAIR_FIX:
         if age < 30:
-            # Young players get dark hair
+            # Under 30: dark hair
             random.seed(name + "hairfix")
             new_hair = random.choice(DARK_HAIRS)
             changes.append(f"Hair: {hair} → {new_hair} (age {age})")
             app[2] = new_hair
-        elif age < 35 and hair.startswith("Hair6"):
-            # 30-34 year olds with white hair get salt-and-pepper instead
+        elif hair.startswith("Hair6"):
+            # 30+: white hair → salt-and-pepper (Hair6 is for coaches, not players)
             random.seed(name + "hairfix")
             new_hair = random.choice(GREYING_HAIRS)
             changes.append(f"Hair: {hair} → {new_hair} (age {age})")
