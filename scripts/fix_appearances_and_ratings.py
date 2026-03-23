@@ -204,11 +204,18 @@ def fix_appearance(player):
         changes.append(f"Mouth: {mouth} → {new_mouth}")
         app[6] = new_mouth
 
-    # Fix Eyebrows
+    # Fix Eyebrows (tone group match)
     new_brows, changed = fix_component(brows, head_group, EYEBROWS_BY_GROUP, name + "brows")
     if changed:
         changes.append(f"Eyebrows: {brows} → {new_brows}")
         app[4] = new_brows
+
+    # Fix orange eyebrows on darker skin — "a" variant renders orange on groups 4-5
+    if head_group in (4, 5):
+        expected = f"Eyebrows{head_group}b"
+        if app[4] != expected:
+            changes.append(f"Eyebrows: {app[4]} → {expected}")
+            app[4] = expected
 
     # Fix Beard (only standard pool beards — skip extended variants like Beard2r)
     beard = app[3]   # index 3
