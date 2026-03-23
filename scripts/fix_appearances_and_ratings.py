@@ -1,16 +1,20 @@
 """
-Fix Appearances, Ratings, and Mental Stats
-============================================
-Addresses three issues in PGMRoster_2026_Final.json:
+Fix Appearances, Ratings, and All Stats
+========================================
+Addresses four issues in PGMRoster_2026_Final.json:
 
-1. APPEARANCE CLIPPING: 522 players have Head/Nose skin-tone group mismatches
-   (e.g., Head5a + Nose1b). Fixes by aligning Nose and Mouth to match the Head group.
+1. APPEARANCE CLIPPING: Players with Head/Nose/Mouth/Eyebrows skin-tone group
+   mismatches. Fixes by aligning Nose, Mouth, Eyebrows to match the Head group.
 
 2. LOW OVR: Active roster players below 55 are bumped to 55 with stats recalculated.
    Ensures potential >= rating for all players (fixes Future Growth = 0).
 
-3. ZERO MENTAL STATS: RB/WR/TE/K/P currently have intelligence, vision, decisions,
-   discipline all at 0. Adds baseline mental stats for all positions.
+3. MENTAL STATS TOO LOW: Boosts intelligence, vision, decisions, discipline to
+   rating-5 baseline (was rating-15). Overwrites if current value is below baseline.
+
+4. SECONDARY STATS AT ZERO: The game engine uses ALL stats for OVR calculation.
+   Sets every remaining gameplay stat to a non-zero baseline (rating-15, floor 40)
+   to prevent 0-valued stats from dragging down in-game OVR.
 
 Usage:
     python scripts/fix_appearances_and_ratings.py
@@ -73,6 +77,20 @@ POS_STATS = {
 
 # Mental stats that should be non-zero for ALL positions
 MENTAL_STATS = ["intelligence", "vision", "decisions", "discipline"]
+
+# ALL gameplay stat fields (used to ensure no stat is left at 0)
+ALL_GAMEPLAY_STATS = [
+    "passBlock", "rushBlock", "throwOnRun", "routeRun", "ballSecurity", "trucking",
+    "burst", "sPassAcc", "manCover", "elusiveness", "intelligence", "discipline",
+    "stamina", "dPassAcc", "tackle", "zoneCover", "vision", "blockShedding",
+    "power", "speed", "jumping", "decisions", "mPassAcc", "catching", "agility",
+    "skillMove", "ballStrip", "kickAccuracy", "releaseLine",
+]
+
+# Stats to keep at 0 for non-K/P positions (kicking is irrelevant)
+KICKING_STATS = {"kickAccuracy"}
+# Stats to keep at 0 for K/P (passing/blocking irrelevant)
+KP_SKIP_STATS = {"throwOnRun", "sPassAcc", "dPassAcc", "mPassAcc"}
 
 # ---------------------------------------------------------------------------
 # Appearance fix: tone-grouped pools
@@ -207,8 +225,8 @@ def update_primary_stats(p, new_rating):
 
 
 def add_mental_baselines(p):
-    """Add non-zero mental stats for positions that currently have them at 0.
-    Mental stats are set to a lower baseline derived from the player's OVR."""
+    """Set mental stats to a strong baseline derived from the player's OVR.
+    Overwrites if current value is below the computed baseline."""
     pos = p.get("position", "WR")
     active_stats = POS_STATS.get(pos, POS_STATS["WR"])
     rating = p.get("rating", 60)
@@ -220,12 +238,49 @@ def add_mental_baselines(p):
         if stat in active_stats:
             continue
         current = p.get(stat, 0)
-        if current != 0:
-            continue  # already has a value, don't overwrite
 
-        # Set a lower baseline: rating - 15 with jitter, floor 30, ceiling 75
-        random.seed(name + stat + "mental")
-        baseline = max(30, min(75, rating - 15 + random.randint(-5, 5)))
+        # Baseline: rating - 5 with jitter, floor 40, ceiling 90
+        random.seed(name + stat + "mental2")
+        baseline = max(40, min(90, rating - 5 + random.randint(-3, 3)))
+
+        if current < baseline:
+            p[stat] = baseline
+            changes.append(f"{stat}: {current} → {baseline}")
+
+    return changes
+
+
+def add_secondary_baselines(p):
+    """Set ALL remaining gameplay stats to non-zero baselines.
+    This prevents the game engine from dragging down OVR with zero-valued stats."""
+    pos = p.get("position", "WR")
+    active_stats = set(POS_STATS.get(pos, POS_STATS["WR"]))
+    rating = p.get("rating", 60)
+    name = f"{p['forename']} {p['surname']}"
+    is_kp = pos in ("K", "P")
+
+    changes = []
+    for stat in ALL_GAMEPLAY_STATS:
+        # Skip primary stats (already handled)
+        if stat in active_stats:
+            continue
+        # Skip mental stats (handled by add_mental_baselines)
+        if stat in MENTAL_STATS:
+            continue
+        # Skip kickAccuracy for non-K/P
+        if stat in KICKING_STATS and not is_kp:
+            continue
+        # Skip passing stats for K/P
+        if stat in KP_SKIP_STATS and is_kp:
+            continue
+
+        current = p.get(stat, 0)
+        if current != 0:
+            continue  # already has a value
+
+        # Secondary baseline: rating - 15 with jitter, floor 40, ceiling 80
+        random.seed(name + stat + "secondary")
+        baseline = max(40, min(80, rating - 15 + random.randint(-3, 3)))
         p[stat] = baseline
         changes.append(f"{stat}: 0 → {baseline}")
 
@@ -282,6 +337,8 @@ def main():
     potential_fixes = 0
     mental_stat_fixes = 0
     mental_details = []
+    secondary_stat_fixes = 0
+    secondary_details = []
 
     for p in pgm:
         name = f"{p['forename']} {p['surname']}"
@@ -318,12 +375,19 @@ def main():
             p["potential"] = max(rating, potential)
             potential_fixes += 1
 
-        # --- Fix 3: Baseline mental stats (all players) ---
+        # --- Fix 3: Baseline mental stats (all players, boosted formula) ---
         mental_changes = add_mental_baselines(p)
         if mental_changes:
             mental_stat_fixes += 1
             mental_details.append(f"  {p.get('teamID','??'):4} {p.get('position','??'):4} "
                                   f"{name:30} {', '.join(mental_changes)}")
+
+        # --- Fix 4: Secondary stat baselines (all players, no stat left at 0) ---
+        secondary_changes = add_secondary_baselines(p)
+        if secondary_changes:
+            secondary_stat_fixes += 1
+            secondary_details.append(f"  {p.get('teamID','??'):4} {p.get('position','??'):4} "
+                                     f"{name:30} {', '.join(secondary_changes)}")
 
     # --- Print results ---
     print(f"\n{'='*60}")
@@ -345,12 +409,20 @@ def main():
     print(f"\nPOTENTIAL FIXES: {potential_fixes} players (potential < rating)")
 
     print(f"\n{'='*60}")
-    print(f"MENTAL STAT BASELINES ADDED: {mental_stat_fixes} players")
+    print(f"MENTAL STAT BASELINES BOOSTED: {mental_stat_fixes} players")
     print(f"{'='*60}")
     for line in mental_details[:30]:
         print(line)
     if len(mental_details) > 30:
         print(f"  ... and {len(mental_details) - 30} more")
+
+    print(f"\n{'='*60}")
+    print(f"SECONDARY STAT BASELINES ADDED: {secondary_stat_fixes} players")
+    print(f"{'='*60}")
+    for line in secondary_details[:30]:
+        print(line)
+    if len(secondary_details) > 30:
+        print(f"  ... and {len(secondary_details) - 30} more")
 
     # Verify: count remaining issues
     remaining_low = sum(1 for p in pgm if p.get("teamID") in NFL_TEAMS and p.get("rating", 99) < 55)
