@@ -332,8 +332,8 @@ def add_secondary_baselines(p):
 
     changes = []
     for stat in ALL_GAMEPLAY_STATS:
-        # Skip primary stats (already handled)
-        if stat in active_stats:
+        # Skip primary stats that already have values (only rescue 0-valued ones)
+        if stat in active_stats and p.get(stat, 0) > 0:
             continue
         # Skip mental stats (handled by add_mental_baselines)
         if stat in MENTAL_STATS:
