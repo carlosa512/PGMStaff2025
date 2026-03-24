@@ -113,13 +113,9 @@ MOUTH_BY_GROUP = {
     5: ["Mouth5a", "Mouth5b"],
 }
 
-EYEBROWS_BY_GROUP = {
-    1: ["Eyebrows1a", "Eyebrows1b"],
-    2: ["Eyebrows2a", "Eyebrows2b"],
-    3: ["Eyebrows3a", "Eyebrows3b"],
-    4: ["Eyebrows4a", "Eyebrows4b"],
-    5: ["Eyebrows5a", "Eyebrows5b"],
-}
+# Eyebrows are NOT tone-grouped — Eyebrows1a/1b render correctly on all skin tones.
+# Reference: 03ka/10-25_final roster confirms Head5 players use Eyebrows1a/1b.
+SAFE_EYEBROWS = ["Eyebrows1a", "Eyebrows1b"]
 
 # Beard pools by head group — data shows Head groups 4-5 overwhelmingly use Beard1 (92-93%),
 # while Head groups 1-3 use Beard1-3 (75-85%). Beard4-6 are rare and often cause visual
@@ -219,18 +215,13 @@ def fix_appearance(player):
         changes.append(f"Mouth: {mouth} → {new_mouth}")
         app[6] = new_mouth
 
-    # Fix Eyebrows (tone group match)
-    new_brows, changed = fix_component(brows, head_group, EYEBROWS_BY_GROUP, name + "brows")
-    if changed:
-        changes.append(f"Eyebrows: {brows} → {new_brows}")
+    # Fix Eyebrows — only Eyebrows1a/1b render correctly across all skin tones.
+    # Eyebrows2-6 cause rendering artifacts (orange/peach discoloration).
+    if app[4] not in SAFE_EYEBROWS:
+        random.seed(name + "browfix")
+        new_brows = random.choice(SAFE_EYEBROWS)
+        changes.append(f"Eyebrows: {app[4]} → {new_brows}")
         app[4] = new_brows
-
-    # Fix orange eyebrows on darker skin — "a" variant renders orange on groups 4-5
-    if head_group in (4, 5):
-        expected = f"Eyebrows{head_group}b"
-        if app[4] != expected:
-            changes.append(f"Eyebrows: {app[4]} → {expected}")
-            app[4] = expected
 
     # Fix Beard (only standard pool beards — skip extended variants like Beard2r)
     beard = app[3]   # index 3
@@ -319,9 +310,9 @@ def add_mental_baselines(p):
             continue
         current = p.get(stat, 0)
 
-        # Baseline: rating - 5 with jitter, floor 40, ceiling 90
-        random.seed(name + stat + "mental2")
-        baseline = max(40, min(90, rating - 5 + random.randint(-3, 3)))
+        # Baseline: rating - 2 with jitter, floor 60, ceiling 90
+        random.seed(name + stat + "mental3")
+        baseline = max(60, min(90, rating - 2 + random.randint(-3, 3)))
 
         if current < baseline:
             p[stat] = baseline
@@ -356,9 +347,9 @@ def add_secondary_baselines(p):
 
         current = p.get(stat, 0)
 
-        # Secondary baseline: rating - 5 with jitter, floor 40, ceiling 90
-        random.seed(name + stat + "secondary2")
-        baseline = max(40, min(90, rating - 5 + random.randint(-3, 3)))
+        # Secondary baseline: rating - 2 with jitter, floor 60, ceiling 90
+        random.seed(name + stat + "secondary3")
+        baseline = max(60, min(90, rating - 2 + random.randint(-3, 3)))
 
         if current < baseline:
             p[stat] = baseline

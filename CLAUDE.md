@@ -47,12 +47,14 @@ Player appearances are stored as a 9-element array:
 
 ### Skin tone groups (1-5)
 
-The Head number encodes skin tone and **must match** the Nose, Mouth, and Eyebrows numbers:
+The Head number encodes skin tone and **must match** the Nose and Mouth numbers:
 - **Group 1-2**: Lighter skin tones
 - **Group 3-4**: Medium skin tones
 - **Group 5**: Darker skin tones
 
-Mismatched groups (e.g., Head5a + Nose1b) cause **face clipping/rendering glitches** in-game.
+**Eyebrows are NOT tone-grouped** — only `Eyebrows1a`/`Eyebrows1b` render correctly across all skin tones. Eyebrows2-6 cause orange/peach discoloration artifacts on darker heads.
+
+Mismatched Nose/Mouth groups (e.g., Head5a + Nose1b) cause **face clipping/rendering glitches** in-game.
 
 ### Valid appearance pools
 
@@ -62,7 +64,7 @@ Mismatched groups (e.g., Head5a + Nose1b) cause **face clipping/rendering glitch
 | Eyes | Eyes1a-e |
 | Hair | Hair1a-e, Hair2a,2c,2d, Hair3a-d, Hair4a-b, Hair5a-b, Hair6a-d |
 | Beard | Beard1a-e, Beard2a-b, Beard3a-b, Beard4a, Beard5a, Beard6a |
-| Eyebrows | Eyebrows1a-b, 2a-b, 3a-b, 4a-b, 5a-b, 6a-b |
+| Eyebrows | Eyebrows1a-b (only group 1 is safe for all skin tones) |
 | Nose | Nose1a-d, Nose2a-d, Nose3a,3c, Nose4a-d, Nose5a-b |
 | Mouth | Mouth1a-b, Mouth2a-b, Mouth3a-b, Mouth4a-b, Mouth5a-b |
 | Glasses | Glasses1a-e (1e = no glasses) |
@@ -72,12 +74,12 @@ Mismatched groups (e.g., Head5a + Nose1b) cause **face clipping/rendering glitch
 
 ### Appearance accuracy rules
 
-- Head is the **authoritative** skin tone indicator — when fixing mismatches, trust the Head and update Nose/Mouth/Eyebrows/Beard to match
+- Head is the **authoritative** skin tone indicator — when fixing mismatches, trust the Head and update Nose/Mouth/Beard to match (eyebrows always use group 1)
 - For star players (OVR 75+), verify the Head tone group matches the real player's likeness
 - Hair uses a different numbering system (hair color, not skin tone) and is not tone-constrained
 - **Beards ARE tone-sensitive** despite using different numbering — Beard models contain skin-textured polygons. Data shows Head groups 4-5 use Beard1 variants 92-93% of the time. Beard4-6 on lighter skin and Beard2-6 on darker skin cause visible discoloration. The fix script constrains beards to statistically common pools per head group.
 - Only **standard pool beards** (Beard1a-e, Beard2a-b, etc.) are fixed — extended variants (Beard2r, Beard5h) from original game data are left untouched
-- The `rand_appearance()` function in `add_missing_players.py` seeds on player name for deterministic results
+- The `rand_appearance()` function in `add_missing_players.py` seeds on player name for deterministic results and is tone-aware (Nose/Mouth/Beard match Head group, Eyebrows always use group 1)
 
 ---
 
@@ -125,14 +127,14 @@ Each position has specific "active" stats that get non-zero values. All other st
 ### Mental stat baselines
 
 **All positions** now receive non-zero values for intelligence, vision, decisions, and discipline:
-- Derived from OVR: `max(40, min(90, rating - 5 + jitter))`
+- Derived from OVR: `max(60, min(90, rating - 2 + jitter))`
 - If a mental stat is already a primary stat for the position (e.g., intelligence for QB), it keeps its full value
 - Overwrites existing values if below the computed baseline
 
 ### Secondary stat baselines
 
 **All gameplay stats** are now set to non-zero values to prevent the game engine from dragging down in-game OVR:
-- Formula: `max(40, min(90, rating - 5 + jitter))` — same as mental stats
+- Formula: `max(60, min(90, rating - 2 + jitter))` — same as mental stats
 - Only `kickAccuracy` stays at 0 for non-K/P positions
 - Overwrites existing values if below the computed baseline
 - This was added because the game engine uses ALL stats in its OVR formula; having 14+ stats at 0 was causing 40 OVR displays for players with `rating` 60-75
