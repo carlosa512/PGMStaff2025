@@ -180,6 +180,24 @@ def fix_appearance(player):
     if len(app) < 9:
         return 0, []
 
+    name = f"{player['forename']} {player['surname']}"
+    changes = []
+
+    # Replace invalid head models that cause engine-level eyebrow rendering bugs.
+    # Head4a and Head5c are excluded from valid generation pools (CLAUDE.md, add_missing_players.py)
+    # because the engine renders eyebrows with orange/peach discoloration on these models
+    # regardless of which eyebrow variant is assigned.
+    INVALID_HEAD_REPLACEMENTS = {
+        "Head4a": ["Head4b", "Head4c", "Head4d"],
+        "Head5c": ["Head5a", "Head5b", "Head5d"],
+    }
+    head_raw = app[0]
+    if head_raw in INVALID_HEAD_REPLACEMENTS:
+        random.seed(name + "headfix")
+        new_head = random.choice(INVALID_HEAD_REPLACEMENTS[head_raw])
+        changes.append(f"Head: {head_raw} → {new_head} (invalid model)")
+        app[0] = new_head
+
     head = app[0]   # index 0
     nose = app[5]   # index 5
     mouth = app[6]  # index 6
@@ -188,9 +206,6 @@ def fix_appearance(player):
     head_group = get_tone_group(head)
     if head_group is None:
         return 0, []
-
-    name = f"{player['forename']} {player['surname']}"
-    changes = []
 
     # Fix Nose
     new_nose, changed = fix_component(nose, head_group, NOSE_BY_GROUP, name + "nose")
@@ -204,11 +219,18 @@ def fix_appearance(player):
         changes.append(f"Mouth: {mouth} → {new_mouth}")
         app[6] = new_mouth
 
-    # Fix Eyebrows
+    # Fix Eyebrows (tone group match)
     new_brows, changed = fix_component(brows, head_group, EYEBROWS_BY_GROUP, name + "brows")
     if changed:
         changes.append(f"Eyebrows: {brows} → {new_brows}")
         app[4] = new_brows
+
+    # Fix orange eyebrows on darker skin — "a" variant renders orange on groups 4-5
+    if head_group in (4, 5):
+        expected = f"Eyebrows{head_group}b"
+        if app[4] != expected:
+            changes.append(f"Eyebrows: {app[4]} → {expected}")
+            app[4] = expected
 
     # Fix Beard (only standard pool beards — skip extended variants like Beard2r)
     beard = app[3]   # index 3
