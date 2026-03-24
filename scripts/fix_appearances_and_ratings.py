@@ -138,9 +138,11 @@ STANDARD_BEARDS = {
     "Beard4a", "Beard5a", "Beard6a",
 }
 
-# Standard pool grey/white hair values that look unrealistic on young players.
-# Hair5 = grey, Hair6 = white/silver. Only fix standard pool (not extended variants).
+# Standard pool grey/white/auburn hair values that look unrealistic on young players.
+# Hair3 = greying/auburn (appropriate for 30+ only), Hair5 = grey, Hair6 = white/silver.
+# Only fix standard pool (not extended variants).
 YOUNG_HAIR_FIX = {
+    "Hair3a", "Hair3b", "Hair3c", "Hair3d",    # greying/auburn — wrong for under-30
     "Hair5a", "Hair5b",                        # grey
     "Hair6a", "Hair6b", "Hair6c", "Hair6d",    # white/silver
 }
@@ -249,6 +251,16 @@ def fix_appearance(player):
             new_hair = random.choice(GREYING_HAIRS)
             changes.append(f"Hair: {hair} → {new_hair} (age {age})")
             app[2] = new_hair
+
+    # Fix hair that visually clashes with dark eyebrows on darker skin tones.
+    # Eyebrows are always Eyebrows1a/b (dark), so Hair3 (auburn/greying) and Hair4
+    # (reddish) look very out of place on Head4-5 players. Replace with dark Hair1.
+    hair = app[2]
+    if head_group >= 4 and (hair.startswith("Hair3") or hair.startswith("Hair4")):
+        random.seed(name + "hairtonefix")
+        new_hair = random.choice(DARK_HAIRS)
+        changes.append(f"Hair: {hair} → {new_hair} (tone {head_group} + light hair mismatch)")
+        app[2] = new_hair
 
     return len(changes), changes
 
