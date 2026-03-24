@@ -20,6 +20,7 @@ Output:
 import csv
 import json
 import random
+import re
 import uuid
 from collections import defaultdict
 from datetime import date
@@ -116,23 +117,45 @@ HAIRS  = ["Hair1a","Hair1b","Hair1c","Hair1d","Hair1e","Hair2a","Hair2c","Hair2d
            "Hair6a","Hair6b","Hair6c","Hair6d"]
 BEARDS = ["Beard1a","Beard1b","Beard1c","Beard1d","Beard1e","Beard2a","Beard2b",
            "Beard3a","Beard3b","Beard4a","Beard5a","Beard6a"]
-BROWS  = ["Eyebrows1a","Eyebrows1b","Eyebrows2a","Eyebrows2b","Eyebrows3a","Eyebrows3b",
-           "Eyebrows4a","Eyebrows4b","Eyebrows5a","Eyebrows5b","Eyebrows6a","Eyebrows6b"]
-NOSES  = ["Nose1a","Nose1b","Nose1c","Nose1d","Nose2a","Nose2b","Nose2c","Nose2d",
-           "Nose3a","Nose3c","Nose4a","Nose4b","Nose4c","Nose4d","Nose5a","Nose5b"]
-MOUTHS = ["Mouth1a","Mouth1b","Mouth2a","Mouth2b","Mouth3a","Mouth3b",
-           "Mouth4a","Mouth4b","Mouth5a","Mouth5b"]
+BROWS  = ["Eyebrows1a", "Eyebrows1b"]  # Only group 1 renders correctly on all skin tones
+
+# Tone-grouped pools for Nose/Mouth (must match Head group)
+NOSE_BY_GROUP = {
+    1: ["Nose1a","Nose1b","Nose1c","Nose1d"],
+    2: ["Nose2a","Nose2b","Nose2c","Nose2d"],
+    3: ["Nose3a","Nose3c"],
+    4: ["Nose4a","Nose4b","Nose4c","Nose4d"],
+    5: ["Nose5a","Nose5b"],
+}
+MOUTH_BY_GROUP = {
+    1: ["Mouth1a","Mouth1b"],
+    2: ["Mouth2a","Mouth2b"],
+    3: ["Mouth3a","Mouth3b"],
+    4: ["Mouth4a","Mouth4b"],
+    5: ["Mouth5a","Mouth5b"],
+}
+# Beard pools — groups 4-5 only use Beard1 variants (92-93% in real data)
+BEARD_BY_GROUP = {
+    1: ["Beard1a","Beard1b","Beard1c","Beard1d","Beard1e","Beard2a","Beard2b","Beard3a","Beard3b"],
+    2: ["Beard1a","Beard1b","Beard1c","Beard1d","Beard1e","Beard2a","Beard2b","Beard3a","Beard3b"],
+    3: ["Beard1a","Beard1b","Beard1c","Beard1d","Beard1e","Beard2a","Beard2b","Beard3a","Beard3b"],
+    4: ["Beard1a","Beard1b","Beard1c","Beard1d","Beard1e"],
+    5: ["Beard1a","Beard1b","Beard1c","Beard1d","Beard1e"],
+}
 
 def rand_appearance(forename, surname):
     random.seed(forename + surname)
+    head = random.choice(HEADS)
+    # Extract tone group from head (e.g., Head5a → 5)
+    tone_group = int(re.search(r'(\d)', head).group(1))
     return [
-        random.choice(HEADS),
+        head,
         random.choice(EYES),
         random.choice(HAIRS),
-        random.choice(BEARDS),
+        random.choice(BEARD_BY_GROUP[tone_group]),
         random.choice(BROWS),
-        random.choice(NOSES),
-        random.choice(MOUTHS),
+        random.choice(NOSE_BY_GROUP[tone_group]),
+        random.choice(MOUTH_BY_GROUP[tone_group]),
         "Glasses1e",
         random.choice(["Clothes1", "Clothes2"]),
     ]
