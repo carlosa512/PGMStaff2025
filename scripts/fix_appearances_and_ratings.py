@@ -88,9 +88,6 @@ ALL_GAMEPLAY_STATS = [
     "skillMove", "ballStrip", "kickAccuracy", "releaseLine",
 ]
 
-# Stats to keep at 0 for non-K/P positions (kicking is irrelevant)
-KICKING_STATS = {"kickAccuracy"}
-
 # ---------------------------------------------------------------------------
 # Appearance fix: tone-grouped pools
 # ---------------------------------------------------------------------------
@@ -348,10 +345,6 @@ def add_secondary_baselines(p):
         # Skip mental stats (handled by add_mental_baselines)
         if stat in MENTAL_STATS:
             continue
-        # Skip kickAccuracy for non-K/P
-        if stat in KICKING_STATS and not is_kp:
-            continue
-
         current = p.get(stat, 0)
 
         # Secondary baseline: rating - 2 with jitter, floor 60, ceiling 90
