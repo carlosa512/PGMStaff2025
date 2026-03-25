@@ -6,16 +6,15 @@ formula so the game engine's OVR calculation displays correct values.
 
 Root cause: the old formula set active stats to `rating +/- 3` (e.g. 62-68 for
 a 65-rated player), but the game engine needs them at ~(rating+90)/2 (e.g. 77-78).
-Off-position stats were baselined to ~60 instead of 0, further diluting OVR.
 
 The community formula (verified across ratings 60-90):
   Position/mental stats: rating + ceil((90 - rating) * 0.5) + jitter
   Physical stats:        rating + floor((90 - rating) * 0.5) + jitter
   Stamina:               always 85
-  Off-position stats:    0
+  Off-position stats:    LEFT UNCHANGED (zeroing causes game to drop players to FA)
 
 Star players (rating >= 85) with hand-tuned stat profiles are preserved --
-only their off-position stats are zeroed out.
+only active stats below the community formula floor are boosted.
 
 Usage:
     python scripts/fix_player_overall_rating.py
@@ -149,30 +148,17 @@ def fix_player(p):
     effective_rating = max(55, rating)
     changes = []
 
-    # Star player preservation: only zero off-position stats
+    # Star player preservation: keep hand-tuned active stats
     if rating >= 85 and is_hand_tuned(p, active):
-        for stat in ALL_GAMEPLAY_STATS:
-            if stat in active:
-                continue
-            if stat in KICKING_STATS and not is_kp:
-                old = p.get(stat, 0)
-                if old != 0:
-                    p[stat] = 0
-                    changes.append(f"{stat}: {old} -> 0")
-                continue
-            if stat in KP_SKIP_STATS and is_kp:
-                old = p.get(stat, 0)
-                if old != 0:
-                    p[stat] = 0
-                    changes.append(f"{stat}: {old} -> 0")
-                continue
-            old = p.get(stat, 0)
+        # Only zero kickAccuracy for non-K/P
+        if not is_kp:
+            old = p.get("kickAccuracy", 0)
             if old != 0:
-                p[stat] = 0
-                changes.append(f"{stat}: {old} -> 0")
+                p["kickAccuracy"] = 0
+                changes.append(f"kickAccuracy: {old} -> 0")
         return changes, True
 
-    # Normal path: recalculate everything
+    # Normal path: recalculate active stats, leave off-position stats unchanged
     for stat in ALL_GAMEPLAY_STATS:
         old_val = p.get(stat, 0)
 
@@ -190,14 +176,13 @@ def fix_player(p):
                 changes.append(f"{stat}: {old_val} -> 0")
             continue
 
+        # Only recalculate active (position-relevant) stats
         if stat in active:
             new_val = compute_stat(effective_rating, stat, name)
-        else:
-            new_val = 0
-
-        if old_val != new_val:
-            p[stat] = new_val
-            changes.append(f"{stat}: {old_val} -> {new_val}")
+            if old_val != new_val:
+                p[stat] = new_val
+                changes.append(f"{stat}: {old_val} -> {new_val}")
+        # Off-position stats: leave unchanged (zeroing causes game to drop players to FA)
 
     return changes, False
 
@@ -230,8 +215,8 @@ def main():
     print(f"\n{'='*60}")
     print(f"PLAYER STATS RECALCULATED: {fixed} players modified")
     print(f"  Individual stat changes: {stat_changes}")
-    print(f"  Off-position stats zeroed: {stats_zeroed}")
     print(f"  Star players preserved (hand-tuned, rating >= 85): {star_preserved}")
+    print(f"  Note: off-position stats left unchanged (zeroing causes FA bug)")
     print(f"{'='*60}")
 
     # Spot-check sample players at various rating tiers
