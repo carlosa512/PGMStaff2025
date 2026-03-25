@@ -124,20 +124,33 @@ Each position has specific "active" stats that get non-zero values. All other st
 | DB (CB/S) | 11 | manCover, zoneCover, tackle, ballStrip, intelligence |
 | K/P | 4 | kickAccuracy, burst, stamina, jumping |
 
-### Mental stat baselines
+### Per-position zero-stat rules (CRITICAL)
 
-**All positions** now receive non-zero values for intelligence, vision, decisions, and discipline:
-- Derived from OVR: `max(60, min(90, rating - 2 + jitter))`
-- If a mental stat is already a primary stat for the position (e.g., intelligence for QB), it keeps its full value
-- Overwrites existing values if below the computed baseline
+**The PGM3 game engine requires specific stats to be EXACTLY 0 per position.** Setting
+off-position stats to non-zero values breaks the OVR calculation (causes 40 OVR display)
+and triggers auto-release to free agency. This was verified by analyzing the user's
+original game save data.
 
-### Secondary stat baselines
+Each position has a defined set of "always zero" stats — these are skills irrelevant to
+the position (e.g., kickAccuracy for non-K/P, passing stats for defensive players,
+defensive stats for offensive players). See `ZERO_STATS` in `fix_stat_pattern.py` for
+the complete per-position mapping.
 
-**All gameplay stats** are now set to non-zero values to prevent the game engine from dragging down in-game OVR:
-- Formula: `max(60, min(90, rating - 2 + jitter))` — same as mental stats
-- `kickAccuracy` is set to the secondary baseline (60+) for all players including non-K/P — original game data confirms role players (60–79 OVR) had `kickAccuracy = 60`, not 0; leaving it at 0 causes 40 OVR display and auto-release to free agency
-- Overwrites existing values if below the computed baseline
-- This was added because the game engine uses ALL stats in its OVR formula; having 14+ stats at 0 was causing 40 OVR displays for players with `rating` 60-75
+**Key rules:**
+- `kickAccuracy` must be 0 for ALL non-K/P positions
+- Passing stats (sPassAcc, dPassAcc, mPassAcc, throwOnRun) must be 0 for defensive players
+- Defensive stats (manCover, zoneCover, tackle, blockShedding, ballStrip) must be 0 for offensive skill players
+- The number of always-zero stats varies: 10 for QB/RB/WR/TE, 12 for LB/CB/S, 14 for DE/DT, 16 for OL, 18 for K/P
+
+### Non-zero stat value formula
+
+Non-zero stats follow a rating-dependent pattern observed in the game save:
+- Rating 40-55: stats ~60-70 (delta +15-20)
+- Rating 55-65: stats ~70-80 (delta +15)
+- Rating 65-75: stats ~75-85 (delta +10)
+- Rating 75-85: stats ~80-92 (delta +5)
+- Rating 85+: stats ~85-99 (delta ~0)
+- Stamina is always 75-85 regardless of rating
 
 ---
 
@@ -147,6 +160,7 @@ Each position has specific "active" stats that get non-zero values. All other st
 |--------|---------|
 | `scripts/pull_nflverse_rosters.py` | Pull fresh reference data from nflverse |
 | `scripts/add_missing_players.py` | Add NFL players missing from roster (uses nflverse data) |
+| `scripts/fix_stat_pattern.py` | Fix per-position zero-stat pattern + raise undervalued non-zero stats |
 | `scripts/fix_ratings.py` | Bump <55 to 55, re-rate 68-floor artifacts using w_av formula |
 | `scripts/fix_appearances_and_ratings.py` | Fix appearance clipping (tone + beard mismatches), boost mental + secondary stats |
 | `scripts/trim_rosters.py` | Enforce 53-man roster limits, prune low-rated FAs |
