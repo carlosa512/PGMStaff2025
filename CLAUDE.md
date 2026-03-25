@@ -135,7 +135,7 @@ Each position has specific "active" stats that get non-zero values. All other st
 
 **All gameplay stats** are now set to non-zero values to prevent the game engine from dragging down in-game OVR:
 - Formula: `max(60, min(90, rating - 2 + jitter))` — same as mental stats
-- Only `kickAccuracy` stays at 0 for non-K/P positions
+- `kickAccuracy` is set to the secondary baseline (60+) for all players including non-K/P — original game data confirms role players (60–79 OVR) had `kickAccuracy = 60`, not 0; leaving it at 0 causes 40 OVR display and auto-release to free agency
 - Overwrites existing values if below the computed baseline
 - This was added because the game engine uses ALL stats in its OVR formula; having 14+ stats at 0 was causing 40 OVR displays for players with `rating` 60-75
 
