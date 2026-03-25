@@ -90,8 +90,6 @@ ALL_GAMEPLAY_STATS = [
 
 # Stats to keep at 0 for non-K/P positions (kicking is irrelevant)
 KICKING_STATS = {"kickAccuracy"}
-# Stats to keep at 0 for K/P (passing/blocking irrelevant)
-KP_SKIP_STATS = {"throwOnRun", "sPassAcc", "dPassAcc", "mPassAcc"}
 
 # ---------------------------------------------------------------------------
 # Appearance fix: tone-grouped pools
@@ -352,9 +350,6 @@ def add_secondary_baselines(p):
             continue
         # Skip kickAccuracy for non-K/P
         if stat in KICKING_STATS and not is_kp:
-            continue
-        # Skip passing stats for K/P
-        if stat in KP_SKIP_STATS and is_kp:
             continue
 
         current = p.get(stat, 0)
