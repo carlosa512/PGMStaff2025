@@ -112,7 +112,7 @@ Mismatched Nose/Mouth groups (e.g., Head5a + Nose1b) cause **face clipping/rende
 Contract extraction rules:
 
 - `length`/`eLength`: `max(1, year_signed + years - CURRENT_YEAR)` (metadata source of truth)
-- `salary`/`eSalary`: average `base_salary` using only the **first `remaining_years` valid rows** (`year >= CURRENT_YEAR`, `cap_number > 0`), fallback `apy`
+- `salary`/`eSalary`: **current-year `base_salary` only** (not averaged over remaining years — averaging inflated cap hits for restructured contracts), fallback `apy`
 - `guarantee`/`eGuarantee`: current-year bonus components only  
   (`prorated_bonus + roster_bonus + option_bonus + other_bonus + per_game_roster_bonus + workout_bonus`), fallback current-year `guaranteed_salary`, else `0`
 
@@ -131,7 +131,7 @@ Reporting:
   - `matched_contract_name`, `matched_contract_team`, `match_status`
   - `salary_source`, `guarantee_source`, `reason`
 - Statuses include:
-  - `matched_team`, `matched_name_only`, `skipped_no_match`, `skipped_team_mismatch`, `skipped_ambiguous`, `release_override`, `fa_normalized`
+  - `matched_team`, `matched_name_only`, `matched_inactive_fallback` (stale inflated cap hit reduced to most-recent APY), `skipped_no_match`, `skipped_team_mismatch`, `skipped_ambiguous`, `release_override`, `fa_normalized`
 
 ### Reference repository
 

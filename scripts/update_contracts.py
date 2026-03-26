@@ -5,7 +5,7 @@ Applies real NFL contract data (from nflverse/OverTheCap) to PGMRoster_2026_Fina
 
 Reads ./reference/nflverse_contracts.parquet (current data through 2026) and matches
 players by name to update:
-  - salary / eSalary       (from remaining-year base salary average or APY fallback)
+  - salary / eSalary       (from current-year base salary or APY fallback)
   - guarantee / eGuarantee (from current-year bonus components)
   - length / eLength       (remaining years on contract)
 
@@ -58,6 +58,7 @@ ALIAS_NAME_MAP = {
 
 STATUS_MATCHED_TEAM = "matched_team"
 STATUS_MATCHED_NAME_ONLY = "matched_name_only"
+STATUS_MATCHED_INACTIVE_FALLBACK = "matched_inactive_fallback"
 STATUS_SKIPPED_NO_MATCH = "skipped_no_match"
 STATUS_SKIPPED_TEAM_MISMATCH = "skipped_team_mismatch"
 STATUS_SKIPPED_AMBIGUOUS = "skipped_ambiguous"
@@ -67,6 +68,7 @@ STATUS_FA_NORMALIZED = "fa_normalized"
 ALL_STATUSES = (
     STATUS_MATCHED_TEAM,
     STATUS_MATCHED_NAME_ONLY,
+    STATUS_MATCHED_INACTIVE_FALLBACK,
     STATUS_SKIPPED_NO_MATCH,
     STATUS_SKIPPED_TEAM_MISMATCH,
     STATUS_SKIPPED_AMBIGUOUS,
@@ -230,26 +232,27 @@ def extract_contract_data(row):
     """
     Extract normalized contract payload for lookup.
 
-    Salary: average base salary over first N valid rows where N=remaining years (fallback APY).
+    Salary: current-year base_salary only (fallback APY). Using only the current year
+    avoids inflating cap hits for restructured contracts where future years carry high
+    base salaries that have already been converted to prorated bonus in the current year.
+    This aligns salary+guarantee with OTC's cap_number for the current season.
     Guarantee: current-year bonus components fallback to current-year guaranteed_salary else zero.
     Length: remaining years from metadata.
     """
     year_data = extract_year_data(row.get("cols"))
     remaining_years, year_signed = calculate_remaining_years(row)
 
-    # Salary should only consider the first remaining contract years, not arbitrary
-    # later seasons that can inflate present-day values.
-    salary_window = year_data[:remaining_years]
-    base_salary_values = [entry["base_salary"] for entry in salary_window if entry["base_salary"] > 0]
+    current_year_entry = get_current_year_entry(year_data)
 
-    if base_salary_values:
-        salary = millions_to_dollars(sum(base_salary_values) / len(base_salary_values))
-        salary_source = "avg_base_salary_remaining_years_limited"
+    # Salary uses current-year base salary only. Averaging over remaining years inflates
+    # cap hits for restructured players (low base now, high base in future years).
+    current_year_base = current_year_entry["base_salary"] if current_year_entry else 0
+    if current_year_base > 0:
+        salary = millions_to_dollars(current_year_base)
+        salary_source = "current_year_base_salary"
     else:
         salary = millions_to_dollars(row.get("apy"))
         salary_source = "apy_fallback"
-
-    current_year_entry = get_current_year_entry(year_data)
     guarantee = 0
     guarantee_source = "zero_no_current_year_data"
 
@@ -356,7 +359,19 @@ def build_contract_lookup(df):
     print(f"Unique active name+team lookup keys: {len(lookup_by_team)}")
     print(f"Unique active names in lookup: {len(lookup_by_name)}")
 
-    return lookup_by_team, dict(lookup_by_name)
+    # Build inactive fallback lookup: canonical_name -> most recent APY (all contracts).
+    # Used to reset stale inflated values for players not in active OTC contracts.
+    all_df_sorted = df.sort_values("year_signed", ascending=False)
+    inactive_by_name = {}
+    for _, row in all_df_sorted.iterrows():
+        raw_name = str(row.get("player", ""))
+        cn, _ = apply_alias(normalize_name(raw_name))
+        if cn not in inactive_by_name:
+            apy_val = millions_to_dollars(row.get("apy"))
+            if apy_val > 0:
+                inactive_by_name[cn] = apy_val
+
+    return lookup_by_team, dict(lookup_by_name), inactive_by_name
 
 
 def select_contract_for_player(canonical_name, team_id, lookup_by_team, lookup_by_name):
@@ -474,6 +489,7 @@ def apply_contracts(
     roster_file,
     lookup_by_team,
     lookup_by_name,
+    inactive_by_name,
     release_overrides,
     player_report_path,
     team_cap_report_path,
@@ -582,6 +598,29 @@ def apply_contracts(
                 report_row["matched_contract_name"] = " | ".join(candidate_names)
                 report_row["matched_contract_team"] = " | ".join(candidate_teams)
                 report_row["reason"] = f"{reason};candidate_teams={report_row['matched_contract_team']}"
+
+            # Inactive contract fallback: for skipped_no_match teamed players,
+            # use the most recent historical APY (salary only, $0 bonus, 1yr)
+            # to clear stale inflated values left over from prior formula runs.
+            # Only applies when the current cap hit EXCEEDS the fallback APY.
+            if status == STATUS_SKIPPED_NO_MATCH and team_id not in TEAMLESS_TEAM_IDS:
+                fallback_apy = inactive_by_name.get(canonical_name, 0)
+                current_cap_hit = int(player.get("salary", 0) or 0) + int(player.get("guarantee", 0) or 0)
+                if fallback_apy > 0 and current_cap_hit > fallback_apy:
+                    player["salary"] = fallback_apy
+                    player["eSalary"] = fallback_apy
+                    player["guarantee"] = 0
+                    player["eGuarantee"] = 0
+                    player["length"] = 1
+                    player["eLength"] = 1
+                    report_row["match_status"] = STATUS_MATCHED_INACTIVE_FALLBACK
+                    report_row["salary_source"] = "inactive_apy_fallback"
+                    report_row["guarantee_source"] = "zero_inactive_fallback"
+                    report_row["reason"] = f"stale_cap_hit_{current_cap_hit}_reduced_to_apy_{fallback_apy}"
+                    status_counts[STATUS_MATCHED_INACTIVE_FALLBACK] += 1
+                    report_rows.append(report_row)
+                    continue
+
             report_rows.append(report_row)
             continue
 
@@ -632,13 +671,14 @@ def main():
 
     df = load_contracts()
     release_overrides = load_release_overrides(args.release_overrides_path)
-    lookup_by_team, lookup_by_name = build_contract_lookup(df)
+    lookup_by_team, lookup_by_name, inactive_by_name = build_contract_lookup(df)
 
     print(f"\nApplying contracts to: {ROSTER_FILE}")
     status_counts, total = apply_contracts(
         ROSTER_FILE,
         lookup_by_team,
         lookup_by_name,
+        inactive_by_name,
         release_overrides,
         args.report_path,
         args.team_cap_report_path,
@@ -659,6 +699,7 @@ def main():
     print(f"Matched with contracts:  {matched} ({pct:.1f}%)")
     print(f"  - {STATUS_MATCHED_TEAM}: {status_counts[STATUS_MATCHED_TEAM]}")
     print(f"  - {STATUS_MATCHED_NAME_ONLY}: {status_counts[STATUS_MATCHED_NAME_ONLY]}")
+    print(f"  - {STATUS_MATCHED_INACTIVE_FALLBACK}: {status_counts[STATUS_MATCHED_INACTIVE_FALLBACK]}")
     print(f"  - {STATUS_SKIPPED_NO_MATCH}: {status_counts[STATUS_SKIPPED_NO_MATCH]}")
     print(f"  - {STATUS_SKIPPED_TEAM_MISMATCH}: {status_counts[STATUS_SKIPPED_TEAM_MISMATCH]}")
     print(f"  - {STATUS_SKIPPED_AMBIGUOUS}: {status_counts[STATUS_SKIPPED_AMBIGUOUS]}")
