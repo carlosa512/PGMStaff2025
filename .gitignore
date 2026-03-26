@@ -1,5 +1,6 @@
 # NFL reference data (large CSVs, refreshed locally via scripts/pull_nflverse_rosters.py)
 reference/*.csv
+!reference/release_overrides_2026.csv
 reference/*.parquet
 
 # Python
