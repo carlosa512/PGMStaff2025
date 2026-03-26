@@ -1,6 +1,6 @@
 # NFL Reference Data for PGM3
 
-**Last pulled:** 2026-03-25 17:17:28
+**Last pulled:** 2026-03-26 23:19:30
 **Source:** nflverse (https://github.com/nflverse/nflverse-data)
 **Data updates daily at 7AM UTC** (including offseason free agency/trades)
 
@@ -25,6 +25,15 @@ Key columns: season, round, pick, team, player_name, position, college
 
 ### nflverse_transactions.csv
 Trade data. Useful for tracking player movement between teams.
+
+### nflverse_contracts.parquet
+Historical player contracts from OverTheCap.com (parquet format for current data through 2026).
+~50,000 rows covering active and inactive players. Includes per-year breakdowns with
+cap_number, base_salary, guaranteed_salary, roster_bonus, and prorated_bonus.
+Key columns: player, position, team, year_signed, years, value, apy, guaranteed, gsis_id, cols.
+Values are in millions. Filter `is_active == True` for current contracts.
+Use with `scripts/update_contracts.py` to apply real contract data to the game roster.
+Note: The CSV version is frozen at 2022 data - always use the parquet file.
 
 ## How to refresh
 Run: `python scripts/pull_nflverse_rosters.py`
