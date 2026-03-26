@@ -11,6 +11,7 @@ This repo contains pre-pulled NFL roster data in `./reference/`. **Always check 
 - `./reference/nflverse_players.csv` - Master player database with all IDs (gsis, espn, pfr, pff, etc.)
 - `./reference/nflverse_draft_picks.csv` - Draft picks by season (filter season=2026 for rookies)
 - `./reference/nflverse_transactions.csv` - Trade history
+- `./reference/nflverse_contracts.csv` - Player contracts from OverTheCap (salary, guaranteed, years, APY)
 
 ### Workflow for roster edits:
 
@@ -185,6 +186,7 @@ Non-zero stats follow a rating-dependent pattern observed in the game save:
 | `scripts/fix_ratings.py` | Bump <55 to 55, re-rate 68-floor artifacts using w_av formula |
 | `scripts/fix_appearances_and_ratings.py` | Fix appearance clipping (tone + beard mismatches), boost mental + secondary stats |
 | `scripts/trim_rosters.py` | Enforce 53-man roster limits, prune low-rated FAs |
+| `scripts/update_contracts.py` | Apply real contract data from OverTheCap/nflverse (salary, guarantee, length) |
 | `scripts/update_roster_2026.py` | Apply offseason moves (trades, FA signings, cuts) |
 | `scripts/update_appearances.py` | Manual appearance corrections by player name |
 | `scripts/update_staff_2026.py` | Update coaching staff for 2026 |
