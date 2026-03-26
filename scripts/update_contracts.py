@@ -117,44 +117,50 @@ def build_contract_lookup(df):
     """
     Build a lookup dict: normalized_name -> contract info.
     For players with multiple contracts, keep the most recent one.
-    Only include active players.
+    Prefers active contracts; uses inactive as fallback for players not in active set.
     """
-    # Filter to active players only
-    active = df[df["is_active"] == True].copy()
-    print(f"Active player contracts: {len(active)}")
-
     # Sort by year_signed descending so most recent contract comes first
-    active = active.sort_values("year_signed", ascending=False)
+    df_sorted = df.sort_values("year_signed", ascending=False)
 
-    lookup = {}
-    for _, row in active.iterrows():
-        norm_name = normalize_name(str(row["player"]))
+    active_count = int(df["is_active"].sum())
+    print(f"Active player contracts: {active_count}")
 
-        # Skip if we already have a more recent contract for this name
-        if norm_name in lookup:
-            continue
-
+    def _extract(row):
         apy = row["apy"]
         guaranteed = row["guaranteed"]
         years = int(row["years"]) if pd.notna(row["years"]) else 1
         year_signed = int(row["year_signed"]) if pd.notna(row["year_signed"]) else CURRENT_YEAR
 
-        # Calculate remaining years: year_signed + years - current_year
         remaining = year_signed + years - CURRENT_YEAR
-        remaining = max(1, remaining)  # At least 1 year
+        remaining = max(1, remaining)
 
-        team_id = resolve_team(row.get("team"))
-
-        lookup[norm_name] = {
+        return {
             "salary": int(apy) if pd.notna(apy) else None,
             "guarantee": int(guaranteed) if pd.notna(guaranteed) else None,
             "length": remaining,
-            "team": team_id,
+            "team": resolve_team(row.get("team")),
             "original_name": row["player"],
             "year_signed": year_signed,
         }
 
-    print(f"Unique players in lookup: {len(lookup)}")
+    # First pass: active contracts only
+    lookup = {}
+    for _, row in df_sorted[df_sorted["is_active"] == True].iterrows():
+        norm_name = normalize_name(str(row["player"]))
+        if norm_name not in lookup:
+            lookup[norm_name] = _extract(row)
+
+    active_unique = len(lookup)
+
+    # Second pass: inactive contracts as fallback (most recent contract for unmatched names)
+    inactive_added = 0
+    for _, row in df_sorted[df_sorted["is_active"] != True].iterrows():
+        norm_name = normalize_name(str(row["player"]))
+        if norm_name not in lookup:
+            lookup[norm_name] = _extract(row)
+            inactive_added += 1
+
+    print(f"Unique players in lookup: {len(lookup)} ({active_unique} active, {inactive_added} inactive fallback)")
     return lookup
 
 
