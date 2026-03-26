@@ -83,6 +83,26 @@ Mismatched Nose/Mouth groups (e.g., Head5a + Nose1b) cause **face clipping/rende
 
 ---
 
+## Contract System (CRITICAL)
+
+### Contract field matching rule
+
+**PGM3 requires `salary == eSalary`, `guarantee == eGuarantee`, `length == eLength` for ALL players.** Mismatched values cause the game to auto-release affected players to Free Agency on load. This was confirmed by comparing against the working reference repo (see below) where 3826/3826 players have perfectly matching fields.
+
+- `salary`/`guarantee`/`length` — display contract values
+- `eSalary`/`eGuarantee`/`eLength` — engine contract values (game manages these internally)
+- After exporting a played season, the `e` fields diverge from the display fields. **Always sync** display fields to match engine fields before re-importing.
+- Fix script: `scripts/fix_contracts.py`
+
+### Reference repository
+
+**https://github.com/AaronsAron/PGM3FootballRosters** — Community PGM3 roster repo by AaronsAron. Use as a reference for:
+- Correct contract field formatting (salary/eSalary always match)
+- Player structure and field conventions
+- Working roster examples that load without issues
+
+---
+
 ## Rating System
 
 ### OVR calculation
@@ -160,6 +180,7 @@ Non-zero stats follow a rating-dependent pattern observed in the game save:
 |--------|---------|
 | `scripts/pull_nflverse_rosters.py` | Pull fresh reference data from nflverse |
 | `scripts/add_missing_players.py` | Add NFL players missing from roster (uses nflverse data) |
+| `scripts/fix_contracts.py` | Sync salary/guarantee/length to eSalary/eGuarantee/eLength (prevents FA auto-release) |
 | `scripts/fix_stat_pattern.py` | Fix per-position zero-stat pattern + raise undervalued non-zero stats |
 | `scripts/fix_ratings.py` | Bump <55 to 55, re-rate 68-floor artifacts using w_av formula |
 | `scripts/fix_appearances_and_ratings.py` | Fix appearance clipping (tone + beard mismatches), boost mental + secondary stats |
