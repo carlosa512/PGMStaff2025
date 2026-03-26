@@ -37,6 +37,7 @@ DATASETS = {
     "nflverse_players.csv": f"{NFLVERSE_BASE}/players/players.csv",
     "nflverse_draft_picks.csv": f"{NFLVERSE_BASE}/draft_picks/draft_picks.csv",
     "nflverse_transactions.csv": f"{NFLVERSE_BASE}/trades/trades.csv",
+    "nflverse_contracts.csv": f"{NFLVERSE_BASE}/contracts/historical_contracts.csv.gz",
 }
 
 
@@ -90,6 +91,14 @@ def try_nflreadpy():
         trades_path = os.path.join(OUTPUT_DIR, "nflverse_transactions.csv")
         trades_df.to_csv(trades_path, index=False)
         print(f"  Saved: {trades_path} ({len(trades_df)} rows)")
+
+        # Contracts (from OverTheCap via nflverse)
+        print("  Pulling contracts...")
+        contracts = nfl.load_contracts()
+        contracts_df = contracts.to_pandas() if hasattr(contracts, "to_pandas") else contracts
+        contracts_path = os.path.join(OUTPUT_DIR, "nflverse_contracts.csv")
+        contracts_df.to_csv(contracts_path, index=False)
+        print(f"  Saved: {contracts_path} ({len(contracts_df)} rows)")
 
         return True
 
@@ -174,6 +183,13 @@ Key columns: season, round, pick, team, player_name, position, college
 
 ### nflverse_transactions.csv
 Trade data. Useful for tracking player movement between teams.
+
+### nflverse_contracts.csv
+Historical player contracts from OverTheCap.com. ~32,000 rows covering active and inactive players.
+Key columns: player, position, team, year_signed, years, value, apy (avg per year),
+guaranteed, apy_cap_pct, inflated_value, inflated_apy, inflated_guaranteed.
+Filter `is_active == True` for current contracts. Use with `scripts/update_contracts.py`
+to apply real contract data to the game roster.
 
 ## How to refresh
 Run: `python scripts/pull_nflverse_rosters.py`

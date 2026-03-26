@@ -12,6 +12,7 @@ Pipeline order:
   5. fix_stat_pattern.py           - Enforce per-position zero-stat pattern
   6. fix_contracts.py              - Sync salary/eSalary contract fields
   7. trim_rosters.py               - Enforce 53-man limits, prune low FAs
+  8. update_contracts.py           - Apply real contract data (OverTheCap)
 
 Usage:
     python scripts/build_roster.py              # Run full pipeline
@@ -42,6 +43,7 @@ PIPELINE = [
     ("fix_stat_pattern",           "Enforce per-position zero-stat pattern"),
     ("fix_contracts",              "Sync contract fields (salary == eSalary)"),
     ("trim_rosters",               "Enforce 53-man limits"),
+    ("update_contracts",           "Apply real contract data (OverTheCap)"),
 ]
 
 FIX_ONLY_STEPS = {
@@ -50,6 +52,7 @@ FIX_ONLY_STEPS = {
     "fix_stat_pattern",
     "fix_contracts",
     "trim_rosters",
+    "update_contracts",
 }
 
 
