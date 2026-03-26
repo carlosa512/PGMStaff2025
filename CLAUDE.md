@@ -11,7 +11,7 @@ This repo contains pre-pulled NFL roster data in `./reference/`. **Always check 
 - `./reference/nflverse_players.csv` - Master player database with all IDs (gsis, espn, pfr, pff, etc.)
 - `./reference/nflverse_draft_picks.csv` - Draft picks by season (filter season=2026 for rookies)
 - `./reference/nflverse_transactions.csv` - Trade history
-- `./reference/nflverse_contracts.csv` - Player contracts from OverTheCap (salary, guaranteed, years, APY)
+- `./reference/nflverse_contracts.parquet` - Player contracts from OverTheCap (salary, guaranteed, years, per-year breakdowns)
 
 ### Workflow for roster edits:
 
