@@ -14,8 +14,8 @@ Addresses four issues in PGMRoster_2026_Final.json:
    rating-5 baseline (floor 40, cap 90). Overwrites if current value is below baseline.
 
 4. SECONDARY STATS: The game engine uses ALL stats for OVR calculation.
-   Sets every remaining gameplay stat to rating-5 baseline (floor 40, cap 90).
-   Overwrites existing values if below the computed baseline.
+   Sets non-zero gameplay stats to rating-based baselines (floor 60, cap 90).
+   Respects per-position ZERO_STATS — stats that must remain 0 are never touched.
 
 Usage:
     python scripts/fix_appearances_and_ratings.py
@@ -87,6 +87,53 @@ ALL_GAMEPLAY_STATS = [
     "power", "speed", "jumping", "decisions", "mPassAcc", "catching", "agility",
     "skillMove", "ballStrip", "kickAccuracy", "releaseLine",
 ]
+
+# Per-position stats that MUST remain 0 — setting these breaks the OVR calculation
+ZERO_STATS = {
+    "QB":  ["passBlock","routeRun","manCover","tackle","zoneCover",
+            "blockShedding","catching","ballStrip","kickAccuracy","releaseLine"],
+    "RB":  ["throwOnRun","sPassAcc","manCover","dPassAcc","tackle",
+            "zoneCover","blockShedding","mPassAcc","ballStrip","kickAccuracy"],
+    "WR":  ["throwOnRun","sPassAcc","manCover","dPassAcc","tackle",
+            "zoneCover","blockShedding","mPassAcc","ballStrip","kickAccuracy"],
+    "TE":  ["throwOnRun","sPassAcc","manCover","dPassAcc","tackle",
+            "zoneCover","blockShedding","mPassAcc","ballStrip","kickAccuracy"],
+    "OT":  ["throwOnRun","routeRun","ballSecurity","trucking","sPassAcc",
+            "manCover","elusiveness","dPassAcc","tackle","zoneCover",
+            "blockShedding","mPassAcc","catching","skillMove","ballStrip","kickAccuracy"],
+    "OG":  ["throwOnRun","routeRun","ballSecurity","trucking","sPassAcc",
+            "manCover","elusiveness","dPassAcc","tackle","zoneCover",
+            "blockShedding","mPassAcc","catching","skillMove","ballStrip","kickAccuracy"],
+    "C":   ["throwOnRun","routeRun","ballSecurity","trucking","sPassAcc",
+            "manCover","elusiveness","dPassAcc","tackle","zoneCover",
+            "blockShedding","mPassAcc","catching","skillMove","ballStrip","kickAccuracy"],
+    "DE":  ["passBlock","rushBlock","throwOnRun","routeRun","ballSecurity",
+            "trucking","sPassAcc","manCover","elusiveness","dPassAcc",
+            "zoneCover","mPassAcc","catching","kickAccuracy"],
+    "DT":  ["passBlock","rushBlock","throwOnRun","routeRun","ballSecurity",
+            "trucking","sPassAcc","manCover","elusiveness","dPassAcc",
+            "zoneCover","mPassAcc","catching","kickAccuracy"],
+    "OLB": ["passBlock","rushBlock","throwOnRun","routeRun","ballSecurity",
+            "trucking","sPassAcc","elusiveness","dPassAcc","mPassAcc",
+            "catching","kickAccuracy"],
+    "MLB": ["passBlock","rushBlock","throwOnRun","routeRun","ballSecurity",
+            "trucking","sPassAcc","elusiveness","dPassAcc","mPassAcc",
+            "catching","kickAccuracy"],
+    "CB":  ["passBlock","rushBlock","throwOnRun","routeRun","ballSecurity",
+            "trucking","sPassAcc","elusiveness","dPassAcc","mPassAcc",
+            "catching","kickAccuracy"],
+    "S":   ["passBlock","rushBlock","throwOnRun","routeRun","ballSecurity",
+            "trucking","sPassAcc","elusiveness","dPassAcc","mPassAcc",
+            "catching","kickAccuracy"],
+    "K":   ["passBlock","rushBlock","throwOnRun","routeRun","ballSecurity",
+            "trucking","sPassAcc","manCover","elusiveness","dPassAcc",
+            "tackle","zoneCover","blockShedding","mPassAcc","catching",
+            "skillMove","ballStrip","releaseLine"],
+    "P":   ["passBlock","rushBlock","throwOnRun","routeRun","ballSecurity",
+            "trucking","sPassAcc","manCover","elusiveness","dPassAcc",
+            "tackle","zoneCover","blockShedding","mPassAcc","catching",
+            "skillMove","ballStrip","releaseLine"],
+}
 
 # ---------------------------------------------------------------------------
 # Appearance fix: tone-grouped pools
@@ -307,6 +354,7 @@ def add_mental_baselines(p):
     Overwrites if current value is below the computed baseline."""
     pos = p.get("position", "WR")
     active_stats = POS_STATS.get(pos, POS_STATS["WR"])
+    zero_stats = set(ZERO_STATS.get(pos, []))
     rating = p.get("rating", 60)
     name = f"{p['forename']} {p['surname']}"
 
@@ -314,6 +362,9 @@ def add_mental_baselines(p):
     for stat in MENTAL_STATS:
         # Skip if it's already a primary stat for this position (already set correctly)
         if stat in active_stats:
+            continue
+        # Skip stats that must remain 0 for this position
+        if stat in zero_stats:
             continue
         current = p.get(stat, 0)
 
@@ -329,16 +380,19 @@ def add_mental_baselines(p):
 
 
 def add_secondary_baselines(p):
-    """Set ALL remaining gameplay stats to non-zero baselines.
-    This prevents the game engine from dragging down OVR with zero-valued stats."""
+    """Set remaining gameplay stats to non-zero baselines, respecting zero-stat rules.
+    Stats in ZERO_STATS for the player's position are never touched."""
     pos = p.get("position", "WR")
     active_stats = set(POS_STATS.get(pos, POS_STATS["WR"]))
+    zero_stats = set(ZERO_STATS.get(pos, []))
     rating = p.get("rating", 60)
     name = f"{p['forename']} {p['surname']}"
-    is_kp = pos in ("K", "P")
 
     changes = []
     for stat in ALL_GAMEPLAY_STATS:
+        # Skip stats that must remain 0 for this position
+        if stat in zero_stats:
+            continue
         # Skip primary stats that already have values (only rescue 0-valued ones)
         if stat in active_stats and p.get(stat, 0) > 0:
             continue

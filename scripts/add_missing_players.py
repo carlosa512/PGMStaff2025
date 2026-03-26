@@ -329,7 +329,7 @@ def build_player(row, draft_info, rating_table):
     salary = placeholder_salary(years_exp, draft_round)
     guarantee  = salary
     e_salary   = salary
-    e_guarantee = guarantee // 2
+    e_guarantee = guarantee
 
     # Personality
     random.seed(forename + surname + "pers")
