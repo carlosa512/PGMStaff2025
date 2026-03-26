@@ -5,7 +5,7 @@ Applies real NFL contract data (from nflverse/OverTheCap) to PGMRoster_2026_Fina
 
 Reads ./reference/nflverse_contracts.parquet (current data through 2026) and matches
 players by name to update:
-  - salary / eSalary       (from per-year cap_number or APY)
+  - salary / eSalary       (from average remaining base_salary or APY fallback)
   - guarantee / eGuarantee (from remaining guaranteed money)
   - length / eLength       (remaining years on contract)
 
@@ -15,15 +15,19 @@ Run AFTER trim_rosters.py so we only process players who survived roster cuts.
 
 Usage:
     python scripts/update_contracts.py
+    python scripts/update_contracts.py --report-path reference/contract_update_report.csv
 
 Prerequisites:
     Run `python scripts/pull_nflverse_rosters.py` first to download nflverse_contracts.parquet
     Requires: pip install pandas pyarrow
 """
 
+import argparse
+import csv
 import json
 import os
 import re
+from collections import defaultdict
 
 import pandas as pd
 
@@ -31,10 +35,34 @@ SCRIPTS_DIR = os.path.dirname(os.path.abspath(__file__))
 REPO_ROOT = os.path.join(SCRIPTS_DIR, "..")
 ROSTER_FILE = os.path.join(REPO_ROOT, "PGMRoster_2026_Final.json")
 CONTRACTS_PARQUET = os.path.join(REPO_ROOT, "reference", "nflverse_contracts.parquet")
+DEFAULT_REPORT_PATH = os.path.join(REPO_ROOT, "reference", "contract_update_report.csv")
 CONTRACTS_URL = "https://github.com/nflverse/nflverse-data/releases/download/contracts/historical_contracts.parquet"
 
 # Current game season year
 CURRENT_YEAR = 2026
+
+# Roster team IDs that should be treated as teamless for matching.
+TEAMLESS_TEAM_IDS = {"", "FA", "Free Agent", "Rookie"}
+
+# Known roster aliases to normalize misspellings/nicknames to the contract dataset spelling.
+ALIAS_NAME_MAP = {
+    "micah parson": "micah parsons",
+    "riq woolen": "tariq woolen",
+}
+
+STATUS_MATCHED_TEAM = "matched_team"
+STATUS_MATCHED_NAME_ONLY = "matched_name_only"
+STATUS_SKIPPED_NO_MATCH = "skipped_no_match"
+STATUS_SKIPPED_TEAM_MISMATCH = "skipped_team_mismatch"
+STATUS_SKIPPED_AMBIGUOUS = "skipped_ambiguous"
+
+ALL_STATUSES = (
+    STATUS_MATCHED_TEAM,
+    STATUS_MATCHED_NAME_ONLY,
+    STATUS_SKIPPED_NO_MATCH,
+    STATUS_SKIPPED_TEAM_MISMATCH,
+    STATUS_SKIPPED_AMBIGUOUS,
+)
 
 # Map OverTheCap team names to PGM3 team IDs
 TEAM_NAME_TO_ID = {
@@ -80,6 +108,14 @@ def normalize_name(name):
     return name
 
 
+def apply_alias(normalized_name):
+    """Apply known name aliases. Returns (canonical_name, alias_description)."""
+    canonical_name = ALIAS_NAME_MAP.get(normalized_name, normalized_name)
+    if canonical_name != normalized_name:
+        return canonical_name, f"{normalized_name} -> {canonical_name}"
+    return canonical_name, ""
+
+
 def resolve_team(otc_team):
     """Convert OverTheCap team name to PGM3 team ID."""
     if not otc_team or pd.isna(otc_team):
@@ -101,6 +137,16 @@ def resolve_team(otc_team):
         return ABBREV_TO_ID[otc_team]
 
     return None
+
+
+def parse_int(value, default):
+    """Parse an integer from contract fields, with a safe default."""
+    if value is None or pd.isna(value):
+        return default
+    try:
+        return int(float(value))
+    except (TypeError, ValueError):
+        return default
 
 
 def extract_year_data(cols):
@@ -132,7 +178,53 @@ def extract_year_data(cols):
                     "base_salary": float(entry.get("base_salary", 0) or 0),
                     "guaranteed_salary": float(entry.get("guaranteed_salary", 0) or 0),
                 })
+    future_years.sort(key=lambda x: x["year"])
     return future_years
+
+
+def calculate_remaining_years(row):
+    """Calculate remaining years using contract metadata (source of truth)."""
+    years = parse_int(row.get("years"), 1)
+    year_signed = parse_int(row.get("year_signed"), CURRENT_YEAR)
+    remaining_years = max(1, year_signed + years - CURRENT_YEAR)
+    return remaining_years, year_signed
+
+
+def extract_contract_data(row):
+    """
+    Extract normalized contract payload for lookup.
+
+    Salary uses average base_salary across remaining year rows when available.
+    Falls back to APY when base_salary entries are missing.
+    """
+    year_data = extract_year_data(row.get("cols"))
+    remaining_years, year_signed = calculate_remaining_years(row)
+
+    base_salary_values = [entry["base_salary"] for entry in year_data if entry["base_salary"] > 0]
+    if base_salary_values:
+        avg_base_salary = sum(base_salary_values) / len(base_salary_values)
+        salary = millions_to_dollars(avg_base_salary)
+        salary_source = "avg_base_salary_remaining_years"
+    else:
+        salary = millions_to_dollars(row.get("apy"))
+        salary_source = "apy_fallback"
+
+    guaranteed_values = [entry["guaranteed_salary"] for entry in year_data if entry["guaranteed_salary"] > 0]
+    if guaranteed_values:
+        guarantee = sum(millions_to_dollars(value) for value in guaranteed_values)
+    else:
+        guarantee = millions_to_dollars(row.get("guaranteed"))
+
+    return {
+        "salary": salary,
+        "guarantee": guarantee,
+        "length": remaining_years,
+        "team": resolve_team(row.get("team")),
+        "original_name": str(row.get("player", "")),
+        "year_signed": year_signed,
+        "salary_source": salary_source,
+        "has_year_data": len(year_data) > 0,
+    }
 
 
 def load_contracts():
@@ -154,142 +246,182 @@ def load_contracts():
 
 def build_contract_lookup(df):
     """
-    Build a lookup dict: normalized_name -> contract info.
-    Uses per-year breakdowns from 'cols' for accurate 2026 salary/guarantee data.
-    Prefers active contracts; uses inactive as fallback.
+    Build active-contract lookup tables:
+      - by team key: (canonical_name, team_id) -> contract
+      - by canonical name: canonical_name -> list[contract]
     """
-    df_sorted = df.sort_values("year_signed", ascending=False)
+    active_df = df[df["is_active"] == True].sort_values("year_signed", ascending=False)
+    print(f"Active player contracts: {len(active_df)}")
 
-    active_count = int(df["is_active"].sum())
-    print(f"Active player contracts: {active_count}")
+    lookup_by_team = {}
+    lookup_by_name = defaultdict(list)
 
-    def _extract(row):
-        """Extract contract data using per-year breakdowns when available."""
-        year_data = extract_year_data(row.get("cols"))
+    for _, row in active_df.iterrows():
+        raw_name = str(row.get("player", ""))
+        normalized_name = normalize_name(raw_name)
+        canonical_name, _ = apply_alias(normalized_name)
 
-        if year_data:
-            # Use the current year's cap_number as salary
-            current_year_entry = next((y for y in year_data if y["year"] == CURRENT_YEAR), year_data[0])
-            salary = millions_to_dollars(current_year_entry["cap_number"])
+        contract = extract_contract_data(row)
+        contract["canonical_name"] = canonical_name
 
-            # Remaining guaranteed = sum of guaranteed_salary for all future years
-            guarantee = sum(millions_to_dollars(y["guaranteed_salary"]) for y in year_data)
+        key = (canonical_name, contract["team"])
+        if key in lookup_by_team:
+            continue
+        lookup_by_team[key] = contract
 
-            # Remaining years = count of future year entries with non-zero cap
-            length = len(year_data)
-        else:
-            # Fallback to top-level APY and guaranteed fields (in millions)
-            salary = millions_to_dollars(row.get("apy"))
-            guarantee = millions_to_dollars(row.get("guaranteed"))
+    for (canonical_name, _team), contract in lookup_by_team.items():
+        lookup_by_name[canonical_name].append(contract)
 
-            # Calculate remaining years from year_signed + years
-            years = int(row["years"]) if pd.notna(row.get("years")) else 1
-            year_signed = int(row["year_signed"]) if pd.notna(row.get("year_signed")) else CURRENT_YEAR
-            length = max(1, year_signed + years - CURRENT_YEAR)
-
-        length = max(1, length)
-
-        return {
-            "salary": salary,
-            "guarantee": guarantee,
-            "length": length,
-            "team": resolve_team(row.get("team")),
-            "original_name": row["player"],
-            "year_signed": int(row["year_signed"]) if pd.notna(row.get("year_signed")) else CURRENT_YEAR,
-            "has_year_data": len(year_data) > 0,
-        }
-
-    # First pass: active contracts only
-    lookup = {}
-    for _, row in df_sorted[df_sorted["is_active"] == True].iterrows():
-        norm_name = normalize_name(str(row["player"]))
-        if norm_name not in lookup:
-            lookup[norm_name] = _extract(row)
-
-    active_unique = len(lookup)
-
-    # Second pass: inactive contracts as fallback
-    inactive_added = 0
-    for _, row in df_sorted[df_sorted["is_active"] != True].iterrows():
-        norm_name = normalize_name(str(row["player"]))
-        if norm_name not in lookup:
-            lookup[norm_name] = _extract(row)
-            inactive_added += 1
-
-    print(f"Unique players in lookup: {len(lookup)} ({active_unique} active, {inactive_added} inactive fallback)")
-
-    # Count how many have per-year data
-    with_year_data = sum(1 for v in lookup.values() if v["has_year_data"])
+    with_year_data = sum(1 for v in lookup_by_team.values() if v["has_year_data"])
     print(f"Players with per-year breakdown: {with_year_data}")
+    print(f"Unique active name+team lookup keys: {len(lookup_by_team)}")
+    print(f"Unique active names in lookup: {len(lookup_by_name)}")
 
-    return lookup
+    return lookup_by_team, dict(lookup_by_name)
 
 
-def apply_contracts(roster_file, lookup):
-    """Match roster players to contract data and update fields."""
+def select_contract_for_player(canonical_name, team_id, lookup_by_team, lookup_by_name):
+    """Select the best contract for a roster player following safety rules."""
+    candidates = lookup_by_name.get(canonical_name, [])
+    if not candidates:
+        return None, STATUS_SKIPPED_NO_MATCH, "no_active_contract_name_match"
+
+    if team_id not in TEAMLESS_TEAM_IDS:
+        contract = lookup_by_team.get((canonical_name, team_id))
+        if contract:
+            return contract, STATUS_MATCHED_TEAM, "team_confirmed"
+        return None, STATUS_SKIPPED_TEAM_MISMATCH, "team_mismatch_for_name_match"
+
+    if len(candidates) == 1:
+        return candidates[0], STATUS_MATCHED_NAME_ONLY, "teamless_player_unique_name_match"
+
+    return None, STATUS_SKIPPED_AMBIGUOUS, f"teamless_player_has_{len(candidates)}_candidates"
+
+
+def write_report(report_path, rows):
+    """Write CSV report for contract update outcomes."""
+    report_dir = os.path.dirname(report_path)
+    if report_dir:
+        os.makedirs(report_dir, exist_ok=True)
+
+    fieldnames = [
+        "roster_name",
+        "roster_team",
+        "normalized_name",
+        "alias_used",
+        "matched_contract_name",
+        "matched_contract_team",
+        "match_status",
+        "salary_source",
+        "reason",
+    ]
+
+    with open(report_path, "w", newline="") as handle:
+        writer = csv.DictWriter(handle, fieldnames=fieldnames)
+        writer.writeheader()
+        writer.writerows(rows)
+
+
+def apply_contracts(roster_file, lookup_by_team, lookup_by_name, report_path):
+    """Match roster players to contracts, apply updates, and emit an audit report."""
     with open(roster_file, "r") as f:
         data = json.load(f)
 
     players = data if isinstance(data, list) else data.get("players", data.get("roster", []))
 
-    matched = 0
-    skipped = 0
-    name_only_match = 0
-    team_confirmed = 0
+    status_counts = {status: 0 for status in ALL_STATUSES}
+    report_rows = []
 
     for player in players:
         forename = player.get("forename", "")
         surname = player.get("surname", "")
-        full_name = f"{forename} {surname}"
-        norm_name = normalize_name(full_name)
-        team_id = player.get("teamID", "")
+        full_name = f"{forename} {surname}".strip()
+        normalized_name = normalize_name(full_name)
+        canonical_name, alias_used = apply_alias(normalized_name)
+        team_id = (player.get("teamID", "") or "").strip()
 
-        contract = lookup.get(norm_name)
+        contract, status, reason = select_contract_for_player(
+            canonical_name,
+            team_id,
+            lookup_by_team,
+            lookup_by_name,
+        )
+        status_counts[status] += 1
+
+        report_row = {
+            "roster_name": full_name,
+            "roster_team": team_id,
+            "normalized_name": canonical_name,
+            "alias_used": alias_used,
+            "matched_contract_name": "",
+            "matched_contract_team": "",
+            "match_status": status,
+            "salary_source": "",
+            "reason": reason,
+        }
         if not contract:
-            skipped += 1
+            candidates = lookup_by_name.get(canonical_name, [])
+            if candidates and status in (STATUS_SKIPPED_TEAM_MISMATCH, STATUS_SKIPPED_AMBIGUOUS):
+                candidate_names = sorted({candidate["original_name"] for candidate in candidates if candidate["original_name"]})
+                candidate_teams = sorted({candidate["team"] or "UNKNOWN" for candidate in candidates})
+                report_row["matched_contract_name"] = " | ".join(candidate_names)
+                report_row["matched_contract_team"] = " | ".join(candidate_teams)
+                report_row["reason"] = f"{reason};candidate_teams={report_row['matched_contract_team']}"
+            report_rows.append(report_row)
             continue
 
-        if contract["team"] and team_id not in ("Free Agent", "Rookie", ""):
-            if contract["team"] == team_id:
-                team_confirmed += 1
-            else:
-                name_only_match += 1
-        else:
-            name_only_match += 1
-
         # Apply contract data (always keep pairs matched)
-        if contract["salary"]:
-            player["salary"] = contract["salary"]
-            player["eSalary"] = contract["salary"]
-
-        if contract["guarantee"] is not None:
-            player["guarantee"] = contract["guarantee"]
-            player["eGuarantee"] = contract["guarantee"]
-
+        player["salary"] = contract["salary"]
+        player["eSalary"] = contract["salary"]
+        player["guarantee"] = contract["guarantee"]
+        player["eGuarantee"] = contract["guarantee"]
         player["length"] = contract["length"]
         player["eLength"] = contract["length"]
 
-        matched += 1
+        report_row["matched_contract_name"] = contract["original_name"]
+        report_row["matched_contract_team"] = contract["team"] or ""
+        report_row["salary_source"] = contract["salary_source"]
+        report_rows.append(report_row)
+
+    write_report(report_path, report_rows)
 
     # Save
     with open(roster_file, "w") as f:
         json.dump(data, f, indent=2)
 
-    return matched, skipped, team_confirmed, name_only_match
+    return status_counts, len(players)
 
 
 def main():
+    parser = argparse.ArgumentParser(description="Update PGM3 roster contracts from nflverse parquet data.")
+    parser.add_argument(
+        "--report-path",
+        default=DEFAULT_REPORT_PATH,
+        help=f"Path to CSV audit report (default: {DEFAULT_REPORT_PATH})",
+    )
+    args = parser.parse_args()
+
     print("=" * 60)
     print("Update Contracts from OverTheCap Data (Parquet)")
     print("=" * 60)
 
     df = load_contracts()
-    lookup = build_contract_lookup(df)
+    lookup_by_team, lookup_by_name = build_contract_lookup(df)
 
     print(f"\nApplying contracts to: {ROSTER_FILE}")
-    matched, skipped, team_confirmed, name_only = apply_contracts(ROSTER_FILE, lookup)
+    status_counts, total = apply_contracts(
+        ROSTER_FILE,
+        lookup_by_team,
+        lookup_by_name,
+        args.report_path,
+    )
 
-    total = matched + skipped
+    matched = status_counts[STATUS_MATCHED_TEAM] + status_counts[STATUS_MATCHED_NAME_ONLY]
+    skipped = (
+        status_counts[STATUS_SKIPPED_NO_MATCH]
+        + status_counts[STATUS_SKIPPED_TEAM_MISMATCH]
+        + status_counts[STATUS_SKIPPED_AMBIGUOUS]
+    )
     pct = (matched / total * 100) if total > 0 else 0
 
     print(f"\n{'=' * 60}")
@@ -297,9 +429,13 @@ def main():
     print(f"{'=' * 60}")
     print(f"Total roster players:    {total}")
     print(f"Matched with contracts:  {matched} ({pct:.1f}%)")
-    print(f"  - Team confirmed:      {team_confirmed}")
-    print(f"  - Name-only match:     {name_only}")
-    print(f"Skipped (no match):      {skipped}")
+    print(f"  - {STATUS_MATCHED_TEAM}: {status_counts[STATUS_MATCHED_TEAM]}")
+    print(f"  - {STATUS_MATCHED_NAME_ONLY}: {status_counts[STATUS_MATCHED_NAME_ONLY]}")
+    print(f"  - {STATUS_SKIPPED_NO_MATCH}: {status_counts[STATUS_SKIPPED_NO_MATCH]}")
+    print(f"  - {STATUS_SKIPPED_TEAM_MISMATCH}: {status_counts[STATUS_SKIPPED_TEAM_MISMATCH]}")
+    print(f"  - {STATUS_SKIPPED_AMBIGUOUS}: {status_counts[STATUS_SKIPPED_AMBIGUOUS]}")
+    print(f"Skipped total:           {skipped}")
+    print(f"Report written to:       {args.report_path}")
     print(f"\nAll updated players have salary==eSalary, guarantee==eGuarantee, length==eLength.")
 
 
