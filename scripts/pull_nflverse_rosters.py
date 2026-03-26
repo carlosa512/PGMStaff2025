@@ -17,6 +17,7 @@ Output:
     ./reference/nflverse_players.csv             - Full player database with IDs
     ./reference/nflverse_draft_picks.csv         - Draft picks (useful for rookies)
     ./reference/nflverse_transactions.csv        - Trades data
+    ./reference/nflverse_contracts.parquet       - Player contracts from OverTheCap (current data)
     ./reference/DATA_README.md                   - Description of each file
 """
 
@@ -37,7 +38,6 @@ DATASETS = {
     "nflverse_players.csv": f"{NFLVERSE_BASE}/players/players.csv",
     "nflverse_draft_picks.csv": f"{NFLVERSE_BASE}/draft_picks/draft_picks.csv",
     "nflverse_transactions.csv": f"{NFLVERSE_BASE}/trades/trades.csv",
-    "nflverse_contracts.csv": f"{NFLVERSE_BASE}/contracts/historical_contracts.csv.gz",
 }
 
 
@@ -92,13 +92,18 @@ def try_nflreadpy():
         trades_df.to_csv(trades_path, index=False)
         print(f"  Saved: {trades_path} ({len(trades_df)} rows)")
 
-        # Contracts (from OverTheCap via nflverse)
-        print("  Pulling contracts...")
-        contracts = nfl.load_contracts()
-        contracts_df = contracts.to_pandas() if hasattr(contracts, "to_pandas") else contracts
-        contracts_path = os.path.join(OUTPUT_DIR, "nflverse_contracts.csv")
-        contracts_df.to_csv(contracts_path, index=False)
-        print(f"  Saved: {contracts_path} ({len(contracts_df)} rows)")
+        # Contracts (from OverTheCap via nflverse) - parquet for current data
+        print("  Pulling contracts (parquet)...")
+        try:
+            contracts = nfl.load_contracts()
+            contracts_df = contracts.to_pandas() if hasattr(contracts, "to_pandas") else contracts
+            contracts_path = os.path.join(OUTPUT_DIR, "nflverse_contracts.parquet")
+            contracts_df.to_parquet(contracts_path, index=False)
+            print(f"  Saved: {contracts_path} ({len(contracts_df)} rows)")
+        except Exception as e:
+            print(f"  [WARN] Failed to pull contracts via nflreadpy: {e}")
+            print("  Trying direct parquet download...")
+            _download_contracts_parquet()
 
         return True
 
@@ -109,6 +114,21 @@ def try_nflreadpy():
         print(f"[nflreadpy] Error: {e}")
         print("Falling back to direct CSV download.")
         return False
+
+
+def _download_contracts_parquet():
+    """Download contracts parquet directly from nflverse GitHub releases."""
+    import pandas as pd
+    contracts_url = f"{NFLVERSE_BASE}/contracts/historical_contracts.parquet"
+    contracts_path = os.path.join(OUTPUT_DIR, "nflverse_contracts.parquet")
+    try:
+        df = pd.read_parquet(contracts_url)
+        df.to_parquet(contracts_path, index=False)
+        print(f"  Saved: {contracts_path} ({len(df)} rows)")
+    except ImportError:
+        print("  [ERROR] pyarrow is required for parquet. Install with: pip install pyarrow")
+    except Exception as e:
+        print(f"  [ERROR] Failed to download contracts parquet: {e}")
 
 
 def try_direct_csv():
@@ -148,6 +168,10 @@ def try_direct_csv():
                 except Exception as e2:
                     print(f"  [ERROR] Fallback also failed: {e2}")
 
+    # Download contracts parquet separately (CSV version is stale at 2022)
+    print("  Downloading contracts (parquet - current data)...")
+    _download_contracts_parquet()
+
     return success_count > 0
 
 
@@ -184,12 +208,14 @@ Key columns: season, round, pick, team, player_name, position, college
 ### nflverse_transactions.csv
 Trade data. Useful for tracking player movement between teams.
 
-### nflverse_contracts.csv
-Historical player contracts from OverTheCap.com. ~32,000 rows covering active and inactive players.
-Key columns: player, position, team, year_signed, years, value, apy (avg per year),
-guaranteed, apy_cap_pct, inflated_value, inflated_apy, inflated_guaranteed.
-Filter `is_active == True` for current contracts. Use with `scripts/update_contracts.py`
-to apply real contract data to the game roster.
+### nflverse_contracts.parquet
+Historical player contracts from OverTheCap.com (parquet format for current data through {SEASON}).
+~50,000 rows covering active and inactive players. Includes per-year breakdowns with
+cap_number, base_salary, guaranteed_salary, roster_bonus, and prorated_bonus.
+Key columns: player, position, team, year_signed, years, value, apy, guaranteed, gsis_id, cols.
+Values are in millions. Filter `is_active == True` for current contracts.
+Use with `scripts/update_contracts.py` to apply real contract data to the game roster.
+Note: The CSV version is frozen at 2022 data - always use the parquet file.
 
 ## How to refresh
 Run: `python scripts/pull_nflverse_rosters.py`
