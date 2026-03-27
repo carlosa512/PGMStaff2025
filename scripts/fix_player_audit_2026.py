@@ -223,13 +223,15 @@ def main():
 
         nfl_team, nfl_status = nfl_entry
 
-        if nfl_status in ("UFA", "RFA"):
-            # Player is a free agent in nflverse → move to FA in PGM
+        if nfl_status == "UFA":
+            # Player is an unrestricted free agent in nflverse → move to FA in PGM
+            # RFA (restricted) players stay on their team — the original team can match
+            # any offer, so treat them as still rostered.
             player["teamID"] = "Free Agent"
             zero_contract(player)
             sweep_moved.append(
-                f"  [FA-{nfl_status}] {full_name} was {team} → Free Agent "
-                f"(nflverse: {nfl_status})"
+                f"  [FA-UFA] {full_name} was {team} → Free Agent "
+                f"(nflverse: UFA)"
             )
         elif nfl_status == "ACT" and nfl_team != team:
             # Player is active but on a different team → they've been traded/released
@@ -274,9 +276,9 @@ def main():
         # 1. Active players: PGM team matches nflverse team
         # 2. Free agents: player is FA in PGM and nflverse shows UFA/RFA
         is_fa_in_pgm = pgm_team in TEAMLESS
-        is_fa_in_nfl = nfl_status in ("UFA", "RFA")
+        is_fa_in_nfl = nfl_status == "UFA"
 
-        team_match = (pgm_team == nfl_team) and nfl_status == "ACT"
+        team_match = (pgm_team == nfl_team) and nfl_status in ("ACT", "RFA")
         fa_match = is_fa_in_pgm and is_fa_in_nfl
 
         if not (team_match or fa_match):
