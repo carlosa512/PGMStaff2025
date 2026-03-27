@@ -290,7 +290,7 @@ Use with `scripts/update_contracts.py` to apply real contract data to the game r
 Note: The CSV version is frozen at 2022 data - always use the parquet file.
 
 ### nflverse_player_stats_offense.csv
-Per-player per-season offensive stats for {', '.join(str(s) for s in {STAT_SEASONS})}.
+Per-player per-season offensive stats for {', '.join(str(s) for s in STAT_SEASONS)}.
 Key columns: player_id, player_name, season, completions, attempts, passing_yards, passing_tds,
 interceptions, rushing_yards, carries, receiving_yards, targets, receptions, snap counts.
 Used by `scripts/apply_pff_ratings.py` to compute performance-based ratings.

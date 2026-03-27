@@ -120,80 +120,104 @@ def percentile_rank(value, all_values):
 def compute_offense_scores(off_rows):
     """
     Compute per-player per-season performance scores (0-100) from offensive stats.
+    Data is weekly (one row per player per game week), so we aggregate by season.
+    Snap counts are unavailable; we use games_played * 40 as a proxy.
     Returns: dict[(norm_name, season)] -> {"score": float, "snaps": int, "pos": str}
     """
-    # Group by (name, season, position)
     by_player = defaultdict(lambda: defaultdict(float))
     by_player_pos = {}
-    by_player_snaps = defaultdict(int)
+    by_player_games = defaultdict(int)  # count of game-week rows = games played
 
     for row in off_rows:
-        name = normalize_name(row.get("player_name", row.get("player_display_name", "")))
+        # Use player_display_name (full name) — player_name is abbreviated (T.Brady)
+        name = normalize_name(
+            row.get("player_display_name") or row.get("player_name") or ""
+        )
         if not name:
             continue
         season = safe_int(row.get("season", 0))
         if season not in STAT_SEASONS:
             continue
+        # Skip playoffs for cleaner regular-season comparison
+        if (row.get("season_type") or "").upper() not in ("", "REG", "REGULAR"):
+            continue
         pos = (row.get("position") or "").upper()
         key = (name, season)
 
-        # Accumulate stats (players can have multiple rows if they changed teams mid-season)
         by_player[key]["completions"] += safe_float(row.get("completions"))
         by_player[key]["attempts"] += safe_float(row.get("attempts"))
         by_player[key]["passing_yards"] += safe_float(row.get("passing_yards"))
         by_player[key]["passing_tds"] += safe_float(row.get("passing_tds"))
         by_player[key]["interceptions"] += safe_float(row.get("interceptions"))
+        by_player[key]["passing_epa"] += safe_float(row.get("passing_epa"))
         by_player[key]["rushing_yards"] += safe_float(row.get("rushing_yards"))
         by_player[key]["carries"] += safe_float(row.get("carries"))
+        by_player[key]["rushing_epa"] += safe_float(row.get("rushing_epa"))
         by_player[key]["receiving_yards"] += safe_float(row.get("receiving_yards"))
         by_player[key]["targets"] += safe_float(row.get("targets"))
         by_player[key]["receptions"] += safe_float(row.get("receptions"))
-        # Snap counts — try several column name variants
-        snaps = safe_int(row.get("offense_snaps") or row.get("snap_counts_offense")
-                         or row.get("snaps_played_offense") or row.get("games") or 0)
-        by_player_snaps[key] += snaps
+        by_player[key]["receiving_epa"] += safe_float(row.get("receiving_epa"))
+        by_player_games[key] += 1
         if pos:
             by_player_pos[key] = pos
 
-    # Compute raw metrics per player-season
+    # Minimum volume thresholds — only compare qualified starters in percentile pools
+    MIN_ATT = {"QB": 100, "RB": 50, "WR": 20, "TE": 10}
+
     raw_metrics = {}
     for (name, season), stats in by_player.items():
         pos = by_player_pos.get((name, season), "")
-        snaps = by_player_snaps.get((name, season), 0)
+        games = by_player_games.get((name, season), 0)
+        snap_proxy = games * 40  # ~40 offensive snaps per game proxy
         s = stats
 
         if pos == "QB":
             att = s["attempts"]
-            cmp_pct = s["completions"] / att if att > 0 else 0
-            ypa = s["passing_yards"] / att if att > 0 else 0
+            if att < MIN_ATT["QB"]:
+                continue
+            cmp_pct = s["completions"] / att
+            ypa = s["passing_yards"] / att
             td_int = (s["passing_tds"] + 1) / (s["interceptions"] + 1)
-            rush_threat = s["rushing_yards"] / max(1, snaps if snaps > 0 else 1)
-            metric = 0.35 * cmp_pct * 100 + 0.35 * min(ypa * 10, 100) + \
-                     0.20 * min(td_int * 25, 100) + 0.10 * min(rush_threat * 50, 100)
+            epa_per_att = s["passing_epa"] / att if att > 0 else 0
+            metric = (0.30 * cmp_pct * 100 +
+                      0.25 * min(ypa * 10, 100) +
+                      0.20 * min(td_int * 25, 100) +
+                      0.25 * min((epa_per_att + 0.5) * 50, 100))
 
         elif pos == "RB":
             carries = s["carries"]
-            ypc = s["rushing_yards"] / carries if carries > 0 else 0
-            scrimmage_per_snap = (s["rushing_yards"] + s["receiving_yards"]) / max(1, snaps) if snaps > 0 else 0
-            metric = 0.40 * min(ypc * 12, 100) + 0.35 * min(scrimmage_per_snap * 80, 100) + \
-                     0.25 * min(s["receiving_yards"] / 80, 100)
+            if carries < MIN_ATT["RB"]:
+                continue
+            ypc = s["rushing_yards"] / carries
+            scrimmage_per_game = (s["rushing_yards"] + s["receiving_yards"]) / max(1, games)
+            epa_per_carry = s["rushing_epa"] / carries if carries > 0 else 0
+            metric = (0.30 * min(ypc * 12, 100) +
+                      0.40 * min(scrimmage_per_game * 4, 100) +
+                      0.30 * min((epa_per_carry + 0.3) * 60, 100))
 
         elif pos in ("WR", "TE"):
             tgt = s["targets"]
-            ypt = s["receiving_yards"] / tgt if tgt > 0 else 0
-            catch_pct = s["receptions"] / tgt if tgt > 0 else 0
-            yps = s["receiving_yards"] / max(1, snaps) if snaps > 0 else 0
+            min_tgt = MIN_ATT.get(pos, 20)
+            if tgt < min_tgt:
+                continue
+            ypt = s["receiving_yards"] / tgt
+            catch_pct = s["receptions"] / tgt
+            yds_per_game = s["receiving_yards"] / max(1, games)
+            epa_per_tgt = s["receiving_epa"] / tgt if tgt > 0 else 0
             if pos == "WR":
-                metric = 0.40 * min(ypt * 10, 100) + 0.35 * catch_pct * 100 + \
-                         0.25 * min(yps * 80, 100)
+                metric = (0.25 * min(ypt * 10, 100) +
+                          0.25 * catch_pct * 100 +
+                          0.25 * min(yds_per_game * 2.5, 100) +
+                          0.25 * min((epa_per_tgt + 0.3) * 60, 100))
             else:  # TE
-                metric = 0.35 * min(ypt * 10, 100) + 0.30 * catch_pct * 100 + \
-                         0.35 * min(yps * 80, 100)
+                metric = (0.30 * min(ypt * 10, 100) +
+                          0.25 * catch_pct * 100 +
+                          0.20 * min(yds_per_game * 3, 100) +
+                          0.25 * min((epa_per_tgt + 0.3) * 60, 100))
         else:
-            metric = None
+            continue
 
-        if metric is not None:
-            raw_metrics[(name, season, pos)] = {"metric": metric, "snaps": snaps}
+        raw_metrics[(name, season, pos)] = {"metric": metric, "snaps": snap_proxy}
 
     # Percentile rank within position group per season
     scores = {}
@@ -218,66 +242,83 @@ def compute_defense_scores(def_rows):
     by_player_pos = {}
     by_player_snaps = defaultdict(int)
 
+    by_player_games = defaultdict(int)
+
     for row in def_rows:
-        name = normalize_name(row.get("player_name", row.get("player_display_name", "")))
+        # Use player_display_name (full name) — player_name is abbreviated
+        name = normalize_name(
+            row.get("player_display_name") or row.get("player_name") or ""
+        )
         if not name:
             continue
         season = safe_int(row.get("season", 0))
         if season not in STAT_SEASONS:
             continue
+        if (row.get("season_type") or "").upper() not in ("", "REG", "REGULAR"):
+            continue
         pos = (row.get("position") or "").upper()
         key = (name, season)
 
-        by_player[key]["tackles"] += safe_float(row.get("tackles") or row.get("tackles_solo", 0))
-        by_player[key]["sacks"] += safe_float(row.get("sacks"))
-        by_player[key]["tfl"] += safe_float(row.get("tackles_for_loss") or row.get("tfl", 0))
-        by_player[key]["interceptions"] += safe_float(row.get("interceptions"))
-        by_player[key]["pbu"] += safe_float(row.get("pass_breakups") or row.get("passes_defended", 0))
-        by_player[key]["fumbles"] += safe_float(row.get("fumbles_forced", 0))
-        snaps = safe_int(row.get("defense_snaps") or row.get("snap_counts_defense")
-                         or row.get("snaps_played_defense") or row.get("games") or 0)
-        by_player_snaps[key] += snaps
+        # Defense columns have def_ prefix in nflverse player_stats_def files
+        by_player[key]["tackles"] += safe_float(
+            row.get("def_tackles") or row.get("def_tackles_solo") or row.get("tackles") or 0
+        )
+        by_player[key]["sacks"] += safe_float(row.get("def_sacks") or row.get("sacks") or 0)
+        by_player[key]["tfl"] += safe_float(
+            row.get("def_tackles_for_loss") or row.get("tackles_for_loss") or 0
+        )
+        by_player[key]["interceptions"] += safe_float(
+            row.get("def_interceptions") or row.get("interceptions") or 0
+        )
+        by_player[key]["pbu"] += safe_float(
+            row.get("def_pass_defended") or row.get("pass_breakups") or row.get("passes_defended") or 0
+        )
+        by_player[key]["qb_hits"] += safe_float(row.get("def_qb_hits") or 0)
+        by_player_games[key] += 1
         if pos:
             by_player_pos[key] = pos
 
     raw_metrics = {}
     for (name, season), stats in by_player.items():
         pos = by_player_pos.get((name, season), "")
-        snaps = by_player_snaps.get((name, season), 0)
+        games = by_player_games.get((name, season), 0)
+        snap_proxy = games * 40  # proxy: ~40 defensive snaps per game
         s = stats
-        snaps_safe = max(1, snaps)
+        g = max(1, games)
+
+        # Minimum games to qualify for percentile pool
+        if games < 6:
+            continue
 
         if pos in ("DE", "OLB"):
-            # Pass rush focus
-            metric = 0.50 * min(s["sacks"] / snaps_safe * 1000, 100) + \
-                     0.50 * min(s["tfl"] / snaps_safe * 800, 100)
+            metric = (0.45 * min(s["sacks"] / g * 15, 100) +
+                      0.30 * min(s["tfl"] / g * 12, 100) +
+                      0.25 * min(s["qb_hits"] / g * 8, 100))
 
         elif pos == "DT":
-            metric = 0.50 * min(s["tfl"] / snaps_safe * 800, 100) + \
-                     0.30 * min(s["sacks"] / snaps_safe * 800, 100) + \
-                     0.20 * min(s["tackles"] / snaps_safe * 300, 100)
+            metric = (0.40 * min(s["tfl"] / g * 12, 100) +
+                      0.30 * min(s["sacks"] / g * 15, 100) +
+                      0.30 * min(s["tackles"] / g * 10, 100))
 
         elif pos == "MLB":
-            metric = 0.40 * min(s["tackles"] / snaps_safe * 300, 100) + \
-                     0.30 * min(s["tfl"] / snaps_safe * 600, 100) + \
-                     0.30 * min((s["interceptions"] + s["pbu"]) / snaps_safe * 800, 100)
+            metric = (0.45 * min(s["tackles"] / g * 8, 100) +
+                      0.30 * min(s["tfl"] / g * 12, 100) +
+                      0.25 * min((s["interceptions"] + s["pbu"]) / g * 15, 100))
 
         elif pos == "CB":
-            # Lower targets allowed = better; reward PBUs and INTs
-            metric = 0.40 * min((s["pbu"] + s["interceptions"] * 2) / snaps_safe * 600, 100) + \
-                     0.30 * min(s["interceptions"] / snaps_safe * 1500, 100) + \
-                     0.30 * min(s["tackles"] / snaps_safe * 200, 100)
+            metric = (0.50 * min((s["pbu"] + s["interceptions"] * 2) / g * 15, 100) +
+                      0.30 * min(s["interceptions"] / g * 40, 100) +
+                      0.20 * min(s["tackles"] / g * 8, 100))
 
         elif pos == "S":
-            metric = 0.35 * min(s["tackles"] / snaps_safe * 250, 100) + \
-                     0.35 * min((s["pbu"] + s["interceptions"] * 2) / snaps_safe * 600, 100) + \
-                     0.30 * min(s["interceptions"] / snaps_safe * 1500, 100)
+            metric = (0.35 * min(s["tackles"] / g * 7, 100) +
+                      0.35 * min((s["pbu"] + s["interceptions"] * 2) / g * 15, 100) +
+                      0.30 * min(s["interceptions"] / g * 40, 100))
 
         else:
-            metric = None
+            continue
 
-        if metric is not None:
-            raw_metrics[(name, season, pos)] = {"metric": metric, "snaps": snaps}
+        raw_metrics[(name, season, pos)] = {"metric": metric, "snaps": snap_proxy}
 
     scores = {}
     pos_season_metrics = defaultdict(list)
@@ -348,22 +389,42 @@ def apply_draftee_blending(perf_score, career_snaps, draft_rating):
 
 def perf_score_to_pgm3_rating(score):
     """
-    Map 0-100 performance percentile to PGM3 rating (55-95).
-    Calibrated so ~50th percentile starter ≈ 72, top 5% ≈ 90+, elite ≈ 95.
+    Map 0-100 percentile (among qualified starters) to PGM3 rating (55-95).
+
+    Calibrated against AaronsAron's PFF-based values:
+      99th pct (elite)     → 93-95
+      90th pct (top 10%)   → 87-90
+      75th pct (top 25%)   → 79-83
+      50th pct (avg start) → 70-74
+      25th pct (fringe)    → 63-67
+      10th pct (backup)    → 58-62
     """
     if score >= 90:
-        return min(95, int(85 + (score - 90) * 1.0))
+        return min(95, int(87 + (score - 90) * 0.8))
     elif score >= 75:
-        return int(76 + (score - 75) * 0.6)
+        return int(79 + (score - 75) * 0.53)
     elif score >= 50:
-        return int(65 + (score - 50) * 0.44)
+        return int(70 + (score - 50) * 0.36)
+    elif score >= 25:
+        return int(63 + (score - 25) * 0.28)
     else:
-        return max(55, int(55 + score * 0.2))
+        return max(55, int(55 + score * 0.32))
 
 
 def blend_with_current(perf_derived, current_rating):
-    """Blend 70/30 toward perf-derived to avoid wild swings from noisy data."""
-    blended = int(0.70 * perf_derived + 0.30 * current_rating)
+    """
+    Blend performance-derived rating with current rating.
+    50/50 blend keeps existing ratings stable — prevents wild swings from
+    noisy 3-season averages. Cap at ±12 to prevent dramatic single-run shifts.
+    """
+    blended = int(0.50 * perf_derived + 0.50 * current_rating)
+    blended = max(55, min(95, blended))
+    # Soft cap: limit movement to ±12 per run
+    delta = blended - current_rating
+    if delta > 12:
+        blended = current_rating + 12
+    elif delta < -12:
+        blended = current_rating - 12
     return max(55, min(95, blended))
 
 
