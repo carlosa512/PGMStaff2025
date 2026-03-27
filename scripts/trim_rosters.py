@@ -4,11 +4,13 @@ Trim Team Rosters to 53-Man Limit
 Converts the lowest-rated players on each NFL team to Free Agents until
 every team has exactly 53 players (or fewer if they started with fewer).
 
-Selection uses a two-phase approach:
+Selection uses a three-phase approach:
+  Phase 0: Always protect rookies (draftSeason == ROOKIE_DRAFT_SEASON) — never cut
   Phase 1: Guarantee positional minimums (e.g., at least 2 QBs, 3 WRs, etc.)
-  Phase 2: Fill remaining slots up to 53 by rating descending
+  Phase 2: Fill remaining slots, cutting from most-expendable positions first
+           (WR/CB/S cut before QB/K/P; lowest-rated cut first within position)
 
-Free Agents and Rookies are untouched.
+Free Agents and Rookies (teamID="Rookie") are untouched.
 
 Usage:
     python scripts/trim_rosters.py
@@ -25,6 +27,10 @@ ROSTER_FILE = __import__("os").path.join(
 )
 
 ROSTER_LIMIT = 53
+
+# Players drafted this season are rookies — always kept regardless of rating.
+# In a 2026 game, 2025 draft picks are first-year players.
+ROOKIE_DRAFT_SEASON = 2025
 
 # Minimum players to guarantee per position before any ratings-based cuts
 POS_MINIMUMS = {
@@ -45,6 +51,27 @@ POS_MINIMUMS = {
     "P":   1,
 }
 
+# Phase 2 cut order: positions at the front are cut first when trimming to 53.
+# Positions with natural depth (WR, CB, S) are most expendable.
+# QB, K, P are last resort — only cut if every other option is exhausted.
+CUT_PRIORITY = [
+    "WR",   # teams carry 5-6, most depth
+    "CB",   # teams carry 5-6
+    "S",    # teams carry 3-4
+    "DE",   # teams carry 3-4
+    "DT",   # teams carry 3-4
+    "OLB",  # teams carry 3-4
+    "RB",   # teams carry 3-4
+    "OG",   # teams carry 3-4
+    "OT",   # teams carry 3-4
+    "TE",   # teams carry 2-3
+    "MLB",  # teams carry 2-3
+    "C",    # teams carry 1-2
+    "K",    # 1 per team
+    "P",    # 1 per team
+    "QB",   # last resort — never cut if avoidable
+]
+
 NFL_TEAMS = {
     "ARI","ATL","BAL","BUF","CAR","CHI","CIN","CLE","DAL","DEN",
     "DET","GB","HOU","IND","JAX","KC","LAC","LAR","LV","MIA",
@@ -55,27 +82,49 @@ NFL_TEAMS = {
 def select_keepers(players):
     """
     Given a list of players on one team, return the set of idens to keep (≤ 53).
-    Uses two-phase selection: positional minimums first, then top by rating.
+
+    Phase 0: Rookies are always kept.
+    Phase 1: Positional minimums — keep top N by rating per position.
+    Phase 2: Fill remaining slots by cutting from most-expendable positions
+             first (per CUT_PRIORITY), lowest-rated first within a position.
     """
     kept_idens = set()
+
+    # Phase 0: Protect all rookies unconditionally
+    for p in players:
+        if p.get("draftSeason") == ROOKIE_DRAFT_SEASON:
+            kept_idens.add(p["iden"])
 
     # Phase 1: Positional minimums — for each position, keep the top N by rating
     by_pos = {}
     for p in players:
-        pos = p["position"]
-        by_pos.setdefault(pos, []).append(p)
+        by_pos.setdefault(p["position"], []).append(p)
 
     for pos, min_count in POS_MINIMUMS.items():
         candidates = sorted(by_pos.get(pos, []), key=lambda p: p["rating"], reverse=True)
         for p in candidates[:min_count]:
             kept_idens.add(p["iden"])
 
-    # Phase 2: Fill remaining slots by rating until we hit 53
+    # Phase 2: Fill remaining slots, cutting most-expendable positions first
     remaining_slots = ROSTER_LIMIT - len(kept_idens)
-    if remaining_slots > 0:
-        not_yet_kept = [p for p in players if p["iden"] not in kept_idens]
-        by_rating = sorted(not_yet_kept, key=lambda p: p["rating"], reverse=True)
-        for p in by_rating[:remaining_slots]:
+    not_yet_kept = [p for p in players if p["iden"] not in kept_idens]
+
+    if remaining_slots <= 0:
+        # Roster already at/over limit from rookies + minimums alone
+        pass
+    elif len(not_yet_kept) <= remaining_slots:
+        # Everyone fits
+        for p in not_yet_kept:
+            kept_idens.add(p["iden"])
+    else:
+        # Sort so most-expendable (cut-first) positions are at the front,
+        # with lowest rating cut first within each position group.
+        cut_idx = {pos: i for i, pos in enumerate(CUT_PRIORITY)}
+        not_yet_kept.sort(
+            key=lambda p: (cut_idx.get(p["position"], len(CUT_PRIORITY) // 2), p["rating"])
+        )
+        # Keep the last `remaining_slots` entries (least expendable / highest rated)
+        for p in not_yet_kept[-remaining_slots:]:
             kept_idens.add(p["iden"])
 
     return kept_idens
