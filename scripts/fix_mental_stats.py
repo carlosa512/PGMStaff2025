@@ -283,6 +283,8 @@ ADD_PLAYERS = [
         "teamID": "NO", "age": 25, "draftSeason": 2024, "draftNum": 0,
         "rating": 65, "teamNum": 31,
         "personality": {"discipline": 60, "intelligence": 65},
+        "appearance": ["Head5a", "Eyes1b", "Hair3a", "Beard1a", "Eyebrows1a",
+                        "Nose5a", "Mouth5a", "Glasses1e", "Clothes2"],
     },
     {
         "forename": "Haason", "surname": "Reddick", "position": "OLB",
@@ -418,41 +420,78 @@ def process_player(p):
 
 
 # ---------------------------------------------------------------------------
-# Player creation helpers (mirrors add_missing_players.py)
+# Player creation helpers
+# Uses ZERO_STATS from fix_stat_pattern.py to ensure correct stat pattern
+# (game engine requires ALL stats NOT in ZERO_STATS to be non-zero)
 # ---------------------------------------------------------------------------
 
-# Which stats are non-zero for each position
-POS_ACTIVE_STATS = {
-    "QB":  ["throwOnRun","sPassAcc","dPassAcc","mPassAcc","decisions","vision",
-             "intelligence","burst","speed","agility","elusiveness","ballSecurity",
-             "skillMove","stamina","jumping","power"],
-    "RB":  ["trucking","ballSecurity","elusiveness","burst","speed","agility",
-             "catching","skillMove","rushBlock","stamina","power","jumping"],
-    "WR":  ["routeRun","catching","ballSecurity","burst","speed","agility",
-             "elusiveness","skillMove","stamina","jumping"],
-    "TE":  ["routeRun","catching","ballSecurity","burst","speed","agility",
-             "elusiveness","skillMove","rushBlock","passBlock","stamina","jumping","power"],
-    "OT":  ["passBlock","rushBlock","burst","power","speed","agility",
-             "intelligence","discipline","stamina","jumping"],
-    "OG":  ["passBlock","rushBlock","burst","power","speed","agility",
-             "intelligence","discipline","stamina","jumping"],
-    "C":   ["passBlock","rushBlock","burst","power","speed","agility",
-             "intelligence","discipline","stamina","jumping"],
-    "DE":  ["blockShedding","tackle","power","burst","speed","agility",
-             "ballStrip","intelligence","stamina","jumping"],
-    "DT":  ["blockShedding","tackle","power","burst","speed","agility",
-             "ballStrip","intelligence","stamina","jumping"],
-    "OLB": ["blockShedding","tackle","zoneCover","burst","speed","agility",
-             "ballStrip","intelligence","stamina","jumping"],
-    "MLB": ["blockShedding","tackle","zoneCover","burst","speed","agility",
-             "ballStrip","intelligence","stamina","jumping"],
-    "CB":  ["manCover","zoneCover","tackle","ballStrip","burst","speed",
-             "agility","elusiveness","intelligence","stamina","jumping"],
-    "S":   ["manCover","zoneCover","tackle","ballStrip","burst","speed",
-             "agility","elusiveness","intelligence","stamina","jumping"],
-    "K":   ["kickAccuracy","burst","stamina","jumping"],
-    "P":   ["kickAccuracy","burst","stamina","jumping"],
+# Per-position stats that MUST be exactly 0 (from fix_stat_pattern.py)
+GAME_ZERO_STATS = {
+    "QB":  ["passBlock", "routeRun", "manCover", "tackle", "zoneCover",
+            "blockShedding", "catching", "ballStrip", "kickAccuracy", "releaseLine"],
+    "RB":  ["throwOnRun", "sPassAcc", "manCover", "dPassAcc", "tackle",
+            "zoneCover", "blockShedding", "mPassAcc", "ballStrip", "kickAccuracy"],
+    "WR":  ["throwOnRun", "sPassAcc", "manCover", "dPassAcc", "tackle",
+            "zoneCover", "blockShedding", "mPassAcc", "ballStrip", "kickAccuracy"],
+    "TE":  ["throwOnRun", "sPassAcc", "manCover", "dPassAcc", "tackle",
+            "zoneCover", "blockShedding", "mPassAcc", "ballStrip", "kickAccuracy"],
+    "OT":  ["throwOnRun", "routeRun", "ballSecurity", "trucking", "sPassAcc",
+            "manCover", "elusiveness", "dPassAcc", "tackle", "zoneCover",
+            "blockShedding", "mPassAcc", "catching", "skillMove", "ballStrip", "kickAccuracy"],
+    "OG":  ["throwOnRun", "routeRun", "ballSecurity", "trucking", "sPassAcc",
+            "manCover", "elusiveness", "dPassAcc", "tackle", "zoneCover",
+            "blockShedding", "mPassAcc", "catching", "skillMove", "ballStrip", "kickAccuracy"],
+    "C":   ["throwOnRun", "routeRun", "ballSecurity", "trucking", "sPassAcc",
+            "manCover", "elusiveness", "dPassAcc", "tackle", "zoneCover",
+            "blockShedding", "mPassAcc", "catching", "skillMove", "ballStrip", "kickAccuracy"],
+    "DE":  ["passBlock", "rushBlock", "throwOnRun", "routeRun", "ballSecurity",
+            "trucking", "sPassAcc", "manCover", "elusiveness", "dPassAcc",
+            "zoneCover", "mPassAcc", "catching", "kickAccuracy"],
+    "DT":  ["passBlock", "rushBlock", "throwOnRun", "routeRun", "ballSecurity",
+            "trucking", "sPassAcc", "manCover", "elusiveness", "dPassAcc",
+            "zoneCover", "mPassAcc", "catching", "kickAccuracy"],
+    "OLB": ["passBlock", "rushBlock", "throwOnRun", "routeRun", "ballSecurity",
+            "trucking", "sPassAcc", "elusiveness", "dPassAcc", "mPassAcc",
+            "catching", "kickAccuracy"],
+    "MLB": ["passBlock", "rushBlock", "throwOnRun", "routeRun", "ballSecurity",
+            "trucking", "sPassAcc", "elusiveness", "dPassAcc", "mPassAcc",
+            "catching", "kickAccuracy"],
+    "CB":  ["passBlock", "rushBlock", "throwOnRun", "routeRun", "ballSecurity",
+            "trucking", "sPassAcc", "elusiveness", "dPassAcc", "mPassAcc",
+            "catching", "kickAccuracy"],
+    "S":   ["passBlock", "rushBlock", "throwOnRun", "routeRun", "ballSecurity",
+            "trucking", "sPassAcc", "elusiveness", "dPassAcc", "mPassAcc",
+            "catching", "kickAccuracy"],
+    "K":   ["passBlock", "rushBlock", "throwOnRun", "routeRun", "ballSecurity",
+            "trucking", "sPassAcc", "manCover", "elusiveness", "dPassAcc",
+            "tackle", "zoneCover", "blockShedding", "mPassAcc", "catching",
+            "skillMove", "ballStrip", "releaseLine"],
+    "P":   ["passBlock", "rushBlock", "throwOnRun", "routeRun", "ballSecurity",
+            "trucking", "sPassAcc", "manCover", "elusiveness", "dPassAcc",
+            "tackle", "zoneCover", "blockShedding", "mPassAcc", "catching",
+            "skillMove", "ballStrip", "releaseLine"],
 }
+
+ALL_GAMEPLAY_STATS = [
+    "passBlock", "rushBlock", "throwOnRun", "routeRun", "ballSecurity", "trucking",
+    "burst", "sPassAcc", "manCover", "elusiveness", "intelligence", "discipline",
+    "stamina", "dPassAcc", "tackle", "zoneCover", "vision", "blockShedding",
+    "power", "speed", "jumping", "decisions", "mPassAcc", "catching", "agility",
+    "skillMove", "ballStrip", "kickAccuracy", "releaseLine",
+]
+
+
+def game_stat_value(rating, name, stat):
+    """Calculate a stat value matching the PGM3 game engine's observed pattern."""
+    random.seed(name + stat + "gamestat")
+    if rating >= 90:
+        return max(85, min(99, rating + random.randint(-5, 0)))
+    elif rating >= 75:
+        return max(75, min(99, rating + random.randint(0, 8)))
+    elif rating >= 60:
+        return max(65, min(95, rating + random.randint(8, 14)))
+    else:
+        return max(60, min(80, 60 + random.randint(0, 10)))
 
 HEADS  = ["Head1a","Head1b","Head1c","Head1d","Head2a","Head2b","Head2c","Head2d",
            "Head3a","Head3b","Head3c","Head3d","Head4b","Head4c","Head4d","Head5a","Head5b","Head5d"]
@@ -526,19 +565,18 @@ def create_player(spec):
     ambition = random.randint(20, 70)
     loyalty = random.randint(20, 65)
 
-    # Stats — zero all, fill position-relevant
-    stat_fields = {s: 0 for s in [
-        "passBlock","rushBlock","throwOnRun","routeRun","ballSecurity","trucking",
-        "burst","sPassAcc","manCover","elusiveness","intelligence","discipline",
-        "dPassAcc","tackle","zoneCover","vision","blockShedding","power","speed",
-        "jumping","releaseLine","decisions","mPassAcc","catching","agility",
-        "skillMove","ballStrip","kickAccuracy","stamina",
-    ]}
-    active = POS_ACTIVE_STATS.get(pos, POS_ACTIVE_STATS["WR"])
-    random.seed(fn + sn + "stats")
-    for stat in active:
-        if stat in stat_fields:
-            stat_fields[stat] = max(60, min(99, rating + random.randint(-3, 3)))
+    # Stats — use ZERO_STATS pattern to determine what must be 0 vs non-zero
+    # This matches the game engine's expected pattern (prevents 40 OVR display bug)
+    name = f"{fn} {sn}"
+    zero_set = set(GAME_ZERO_STATS.get(pos, GAME_ZERO_STATS.get("WR", [])))
+    stat_fields = {}
+    for stat in ALL_GAMEPLAY_STATS:
+        if stat in zero_set:
+            stat_fields[stat] = 0
+        elif stat == "stamina":
+            stat_fields[stat] = random.randint(75, 85)
+        else:
+            stat_fields[stat] = game_stat_value(rating, name, stat)
 
     entry = {
         "passBlock": stat_fields["passBlock"], "rushBlock": stat_fields["rushBlock"],
@@ -551,7 +589,8 @@ def create_player(spec):
         "elusiveness": stat_fields["elusiveness"],
         "intelligence": stat_fields["intelligence"], "discipline": stat_fields["discipline"],
         "draftSeason": spec.get("draftSeason", 2024),
-        "appearance": rand_appearance(fn, sn), "stamina": stat_fields["stamina"],
+        "appearance": spec.get("appearance", rand_appearance(fn, sn)),
+        "stamina": stat_fields["stamina"],
         "eSalary": 0, "dPassAcc": stat_fields["dPassAcc"],
         "tackle": stat_fields["tackle"], "growthType": gt, "age": age,
         "zoneCover": stat_fields["zoneCover"], "vision": stat_fields["vision"],
@@ -559,7 +598,8 @@ def create_player(spec):
         "eGuarantee": 0, "iden": str(uuid.uuid4()).upper(),
         "speed": stat_fields["speed"], "position": pos,
         "draftNum": spec.get("draftNum", 224), "jumping": stat_fields["jumping"],
-        "greed": greed, "releaseLine": 0, "eLength": 1 if spec["teamID"] != "Free Agent" else 0,
+        "greed": greed, "releaseLine": stat_fields.get("releaseLine", 0),
+        "eLength": 1 if spec["teamID"] != "Free Agent" else 0,
         "ambition": ambition, "decisions": stat_fields["decisions"],
         "mPassAcc": stat_fields["mPassAcc"], "catching": stat_fields["catching"],
         "agility": stat_fields["agility"], "skillMove": stat_fields["skillMove"],
