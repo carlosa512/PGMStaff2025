@@ -73,6 +73,13 @@ Mismatched Nose/Mouth groups (e.g., Head5a + Nose1b) cause **face clipping/rende
 
 **Note:** The actual roster data contains extended variants (Hair1r1, Beard2f1, etc.) beyond these pools. The pools above are from the generation scripts.
 
+**Recommended extended hair variants for black/African-American players:**
+- `Hair1s` — cornrow/braided style (used for Beanie Bishop Jr.)
+- `Hair1n` — short textured style (used for Haason Reddick)
+- `Hair1m` — textured style (used on Sauce Gardner in original data)
+- `Hair1q` — textured style (used on Josh Hines-Allen in original data)
+These are not in the standard generation pool but render correctly and provide more accurate representations.
+
 ### Appearance accuracy rules
 
 - Head is the **authoritative** skin tone indicator — when fixing mismatches, trust the Head and update Nose/Mouth/Beard to match (eyebrows always use group 1)

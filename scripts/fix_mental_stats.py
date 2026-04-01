@@ -281,16 +281,18 @@ ADD_PLAYERS = [
     {
         "forename": "Beanie", "surname": "Bishop Jr.", "position": "CB",
         "teamID": "NO", "age": 25, "draftSeason": 2024, "draftNum": 0,
-        "rating": 65, "teamNum": 31,
-        "personality": {"discipline": 60, "intelligence": 65},
-        "appearance": ["Head5a", "Eyes1b", "Hair3a", "Beard1a", "Eyebrows1a",
+        "rating": 70, "teamNum": 31,
+        "personality": {"discipline": 65, "intelligence": 68},
+        "appearance": ["Head5a", "Eyes1b", "Hair1s", "Beard1a", "Eyebrows1a",
                         "Nose5a", "Mouth5a", "Glasses1e", "Clothes2"],
     },
     {
         "forename": "Haason", "surname": "Reddick", "position": "OLB",
         "teamID": "Free Agent", "age": 30, "draftSeason": 2017, "draftNum": 13,
-        "rating": 78, "teamNum": 0,
+        "rating": 83, "teamNum": 0,
         "personality": {"greed": 85, "loyalty": 10, "ambition": 90},
+        "appearance": ["Head4a", "Eyes1a", "Hair1n", "Beard1e", "Eyebrows1a",
+                        "Nose4d", "Mouth4a", "Glasses1e", "Clothes1"],
     },
 ]
 
