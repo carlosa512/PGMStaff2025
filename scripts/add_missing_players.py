@@ -39,6 +39,17 @@ NF_DRAFT     = f"{REPO_ROOT}/reference/nflverse_draft_picks.csv"
 TEAM_MAP  = {"LA": "LAR"}
 SKIP_POS  = {"LS", "FB"}
 
+# nflverse full_name → PGM forename+surname (for dedup matching).
+# Prevents add_missing_players from creating duplicates when nflverse uses a
+# different name spelling than the existing PGM entry.
+NAME_ALIASES = {
+    "Daxton Hill": "Dax Hill",
+    "Foye Oluokun": "Foyesade Oluokun",
+    "Josh Palmer": "Joshua Palmer",
+    "Chig Okonkwo": "Chigoziem Okonkwo",
+    "Kam Curl": "Kamren Curl",
+}
+
 POS_MAP = {
     "C": "C", "CB": "CB", "DB": "CB", "DE": "DE", "DL": "DT", "DT": "DT",
     "FS": "S", "G": "OG", "ILB": "MLB", "K": "K", "LB": "OLB",
@@ -508,6 +519,7 @@ def main():
                 continue
             if status != "ACT":
                 continue  # only add active roster players
+            name = NAME_ALIASES.get(name, name)
             if name in pgm_names:
                 already_present += 1
                 continue

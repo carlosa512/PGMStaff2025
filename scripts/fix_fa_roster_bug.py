@@ -11,6 +11,7 @@ Fixes:
   3. Joshua Palmer → restore to BUF with contract
   4. Dax Hill → restore to CIN with contract
   5. Delete duplicate Tariq Woolen (Riq Woolen already on PHI)
+  6. Delete duplicate Daxton Hill (wrong race — Head1d; Dax Hill has correct Head4c)
 
 Usage:
     python scripts/fix_fa_roster_bug.py
@@ -69,8 +70,11 @@ FIXES = {
     },
 }
 
-# Duplicate to remove (old Tariq Woolen; Riq Woolen already on PHI)
-DELETE_IDEN_PREFIX = "C973F19C"
+# Duplicates to remove
+DELETE_IDEN_PREFIXES = {
+    "C973F19C": "Tariq Woolen (duplicate, Riq Woolen already on PHI)",
+    "8195FB77": "Daxton Hill (duplicate wrong race Head1d, Dax Hill has correct Head4c on CIN)",
+}
 
 
 def main():
@@ -79,19 +83,20 @@ def main():
     print(f"Loaded {len(roster)} players")
 
     fixed = []
-    deleted = False
+    deleted = []
     new_roster = []
 
     for player in roster:
         iden = player.get("iden", "")
         prefix = iden.split("-")[0] if "-" in iden else iden[:8]
 
-        # Delete duplicate Tariq Woolen
-        if prefix == DELETE_IDEN_PREFIX:
+        # Delete duplicates
+        if prefix in DELETE_IDEN_PREFIXES:
             fn = player.get("forename", "")
             sn = player.get("surname", "")
-            print(f"  [DELETE] {fn} {sn} (duplicate, Riq Woolen already on PHI)")
-            deleted = True
+            reason = DELETE_IDEN_PREFIXES[prefix]
+            print(f"  [DELETE] {fn} {sn} — {reason}")
+            deleted.append(f"{fn} {sn}")
             continue
 
         # Apply fixes
@@ -122,8 +127,9 @@ def main():
         print(line)
 
     if deleted:
-        print(f"\n--- DUPLICATE REMOVED ---")
-        print(f"  Tariq Woolen (iden {DELETE_IDEN_PREFIX}...) removed")
+        print(f"\n--- DUPLICATES REMOVED ({len(deleted)}) ---")
+        for name in deleted:
+            print(f"  {name}")
 
     with open(ROSTER_FILE, "w", encoding="utf-8") as f:
         json.dump(new_roster, f, indent=2, ensure_ascii=False)
