@@ -1,6 +1,6 @@
 # NFL Reference Data for PGM3
 
-**Last pulled:** 2026-03-27 00:33:29
+**Last pulled:** 2026-04-03 23:49:30
 **Source:** nflverse (https://github.com/nflverse/nflverse-data)
 **Data updates daily at 7AM UTC** (including offseason free agency/trades)
 
@@ -34,6 +34,18 @@ Key columns: player, position, team, year_signed, years, value, apy, guaranteed,
 Values are in millions. Filter `is_active == True` for current contracts.
 Use with `scripts/update_contracts.py` to apply real contract data to the game roster.
 Note: The CSV version is frozen at 2022 data - always use the parquet file.
+
+### nflverse_player_stats_offense.csv
+Per-player per-season offensive stats for 2022, 2023, 2024, 2025.
+Key columns: player_id, player_name, season, completions, attempts, passing_yards, passing_tds,
+interceptions, rushing_yards, carries, receiving_yards, targets, receptions, snap counts.
+Used by `scripts/apply_pff_ratings.py` to compute performance-based ratings.
+
+### nflverse_player_stats_defense.csv
+Per-player per-season defensive stats for the same seasons.
+Key columns: player_id, player_name, season, tackles, sacks, tackles_for_loss,
+interceptions, pass_breakups, snap counts.
+Used by `scripts/apply_pff_ratings.py` for defensive player rating synthesis.
 
 ## How to refresh
 Run: `python scripts/pull_nflverse_rosters.py`
