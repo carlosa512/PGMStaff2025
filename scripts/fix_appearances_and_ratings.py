@@ -267,9 +267,20 @@ def fix_appearance(player):
         changes.append(f"Eyebrows: {app[4]} → {new_brows}")
         app[4] = new_brows
 
-    # Fix Beard (only standard pool beards — skip extended variants like Beard2r)
+    # Fix Beard.
+    # For Head4/5 (darker tones), force Beard1 variants regardless of pool — Beard2-6
+    # (standard or extended variants like Beard2r/Beard3h/Beard5l) cause visible
+    # discoloration on darker heads. For Head1-3, only constrain standard pool beards
+    # so we don't disturb extended variants from original game data.
     beard = app[3]   # index 3
-    if beard in STANDARD_BEARDS:
+    beard_group = get_tone_group(beard)
+    if beard_group is not None and head_group >= 4 and beard_group >= 2:
+        beard_pool = BEARD_BY_GROUP.get(head_group)  # Beard1a-e for groups 4,5
+        random.seed(name + "beard" + beard)
+        new_beard = random.choice(beard_pool)
+        changes.append(f"Beard: {beard} → {new_beard}")
+        app[3] = new_beard
+    elif beard in STANDARD_BEARDS:
         beard_pool = BEARD_BY_GROUP.get(head_group)
         if beard_pool and beard not in beard_pool:
             random.seed(name + "beard" + beard)
