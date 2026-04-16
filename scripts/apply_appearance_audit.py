@@ -109,7 +109,7 @@ def load_roster(path: Path) -> list[dict]:
 
 def save_roster(path: Path, data: list[dict]) -> None:
     with open(path, "w") as f:
-        json.dump(data, f, separators=(",", ":"))
+        json.dump(data, f, indent=2, ensure_ascii=False)
 
 
 def find_player(roster: list[dict], name: str, team: str) -> dict | None:

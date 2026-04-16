@@ -1,17 +1,17 @@
 name,team,position,rating,current_head,current_hair,current_beard,proposed_head,proposed_hair,proposed_beard,confidence,source,status,notes
 James Conner,ARI,RB,87,Head4b,Hair1d,Beard1d,,,,high,knowledge,no_change,"Black RB, medium-dark complexion; Head4b fits well"
-Chris Lindstrom,ATL,OG,99,Head2b,Hair1h,Beard1h,Head1b,,,medium,web_search,needs_review,White OG; Head2b is slightly tan. Pale complexion per headshot; Head1b more accurate
+Chris Lindstrom,ATL,OG,99,Head2b,Hair1h,Beard1h,Head1b,,,medium,web_search,confirmed,White OG; Head2b is slightly tan. Pale complexion per headshot; Head1b more accurate
 Jessie Bates III,ATL,S,88,Head3c,Hair1h,Beard1h,,,,high,knowledge,no_change,"Black S, medium complexion; Head3c fits"
 Bijan Robinson,ATL,RB,85,Head4d,Hair1o,Beard1f1,,,,high,knowledge,no_change,"Black RB, medium-dark; Head4d fits"
-Tua Tagovailoa,ATL,QB,85,Head4d,Hair1q,Beard1d,Head4b,,,medium,knowledge,needs_review,Samoan QB; Head4d (darkest of group 4) slightly too dark for his tone. Head4b closer to likeness
+Tua Tagovailoa,ATL,QB,85,Head4d,Hair1q,Beard1d,Head4b,,,medium,knowledge,confirmed,Samoan QB; Head4d (darkest of group 4) slightly too dark for his tone. Head4b closer to likeness
 Kyle Hamilton,BAL,S,96,Head3a,Hair1q,Beard1q,,,,high,knowledge,no_change,"Biracial S (Black father, Italian mother); Head3a fits biracial-lighter per calibration"
 Lamar Jackson,BAL,QB,93,Head5a,Hair1s,Beard1f1,,,,high,knowledge,manual_override,Curated gold standard
 Trey Hendrickson,BAL,DE,91,Head2b,Hair2a,Beard2g,,,,high,knowledge,no_change,White DE with full beard; Head2b fits tanner complexion
 Derrick Henry,BAL,RB,90,Head5a,Hair1o,Beard1e,,,,high,knowledge,no_change,"Black RB, darker-skinned; Head5a fits"
 Mark Andrews,BAL,TE,88,Head1a,Hair1g,Beard1g,,,,high,knowledge,no_change,White TE; Head1a correct
 Josh Allen,BUF,QB,91,Head1a,Hair3e,Beard3f1,,,,high,knowledge,manual_override,Curated gold standard
-Greg Rousseau,BUF,OLB,86,Head5b,Hair1s,Beard1s,Head4d,,,medium,knowledge,needs_review,"Black OLB, Haitian heritage, medium-dark tone; Head5b slightly too dark, Head4d closer"
-James Cook,BUF,RB,85,Head5b,Hair1o,Beard1b,Head4d,,,medium,knowledge,needs_review,"Black RB, medium tone; Head5b slightly too dark, Head4d closer"
+Greg Rousseau,BUF,OLB,86,Head5b,Hair1s,Beard1s,Head4d,,,medium,knowledge,confirmed,"Black OLB, Haitian heritage, medium-dark tone; Head5b slightly too dark, Head4d closer"
+James Cook,BUF,RB,85,Head5b,Hair1o,Beard1b,Head4d,,,medium,knowledge,confirmed,"Black RB, medium tone; Head5b slightly too dark, Head4d closer"
 Cairo Santos,CHI,K,89,Head1d,Hair3h,Beard3h,,,,medium,web_search,needs_review,Brazilian K; light-medium Hispanic tone. Head1d acceptable but verify
 Joe Thuney,CHI,OG,86,Head1d,Hair2h,Beard2h,,,,medium,web_search,no_change,White OG with beard; Head1d fits tanner complexion
 Joe Burrow,CIN,QB,91,Head1a,Hair1b,Beard3g,,,,high,knowledge,no_change,White QB; Head1a correct
@@ -26,8 +26,8 @@ Quinn Meinerz,DEN,OG,91,Head1b,Hair2j,Beard2j,,,,high,knowledge,no_change,White 
 Jaylen Waddle,DEN,WR,87,Head5b,Hair1q,Beard1q,,,,high,knowledge,no_change,"Black WR, medium-dark; Head5b fits"
 Pat Surtain II,DEN,CB,86,Head4b,Hair1d,Beard1d,,,,high,knowledge,no_change,"Black CB, medium-dark; Head4b fits"
 Garett Bolles,DEN,OT,85,Head1c,Hair4a,Beard3a,,,,high,knowledge,no_change,White OT with beard; Head1c fits
-Brandon Jones,DEN,S,85,Head2a,Hair1d,Beard1d,Head4b,,,high,knowledge,needs_review,"MISMATCH: Black S currently at Head2a (white tone). Broncos S Brandon Jones is Black, medium-dark; Head4b correct"
-Penei Sewell,DET,OT,96,Head4b,Hair1b,Beard1f2,Head4c,,,medium,knowledge,needs_review,"Samoan OT, medium-dark Polynesian tone; Head4c slightly darker than current Head4b. Optional bump"
+Brandon Jones,DEN,S,85,Head2a,Hair1d,Beard1d,Head4b,,,high,knowledge,confirmed,"MISMATCH: Black S currently at Head2a (white tone). Broncos S Brandon Jones is Black, medium-dark; Head4b correct"
+Penei Sewell,DET,OT,96,Head4b,Hair1b,Beard1f2,Head4c,,,medium,knowledge,confirmed,"Samoan OT, medium-dark Polynesian tone; Head4c slightly darker than current Head4b. Optional bump"
 Amon-Ra St. Brown,DET,WR,92,Head3a,Hair1p,Beard1f1,,,,high,knowledge,no_change,"Biracial WR (Black father, German mother); Head3a fits per biracial-lighter calibration"
 Brian Branch,DET,S,90,Head4c,Hair1q,Beard1b,,,,high,knowledge,no_change,"Black S, medium-dark; Head4c fits"
 Aidan Hutchinson,DET,DE,87,Head1b,Hair4a,Beard1c,,,,high,knowledge,no_change,White DE; Head1b correct
@@ -39,7 +39,7 @@ Xavier McKinney,GB,S,90,Head3b,Hair1e,Beard1e,,,,high,knowledge,no_change,"Black
 Will Anderson Jr.,HOU,DE,94,Head5a,Hair1s,Beard1s,,,,high,knowledge,no_change,"Black DE, medium-dark; Head5a fits"
 Nico Collins,HOU,WR,89,Head5b,Hair1q,Beard1c,,,,high,knowledge,no_change,"Black WR, medium-dark; Head5b fits"
 Danielle Hunter,HOU,DE,87,Head4b,Hair1a,Beard1a,,,,high,knowledge,no_change,"Black DE (Jamaican heritage), medium tone; Head4b fits"
-Bernhard Raimann,IND,OT,90,Head1d,Hair2h,Beard2h,Head1b,,,medium,web_search,needs_review,Austrian OT; very light complexion. Head1d is the darkest of Group 1 and too tan; Head1b better
+Bernhard Raimann,IND,OT,90,Head1d,Hair2h,Beard2h,Head1b,,,medium,web_search,confirmed,Austrian OT; very light complexion. Head1d is the darkest of Group 1 and too tan; Head1b better
 DeForest Buckner,IND,DT,90,Head4b,Hair1p,Beard1e,,,,high,knowledge,no_change,"Black DT, medium-dark; Head4b fits"
 Sauce Gardner,IND,CB,89,Head5a,Hair1m,Beard1g,,,,high,knowledge,no_change,"Black CB, medium-dark; Head5a fits"
 Josh Hines-Allen,JAX,OLB,89,Head4d,Hair1q,Beard1a,,,,high,knowledge,no_change,"Black OLB, darker-skinned; Head4d fits"
@@ -49,11 +49,11 @@ Creed Humphrey,KC,C,96,Head1a,Hair2b,Beard2b,,,,high,knowledge,no_change,"White 
 Chris Jones,KC,DE,91,Head5b,Hair1h,Beard1g,,,,high,knowledge,no_change,"Black DE, darker-skinned; Head5b fits. Typically bald; Hair1h acceptable short variant"
 Patrick Mahomes,KC,QB,85,Head3a,Hair1q,Beard1a,,,,high,knowledge,manual_override,Curated gold standard
 Harrison Butker,KC,K,85,Head1d,Hair3h,Beard3h,,,,medium,web_search,no_change,White K with beard; Head1d acceptable (tanner Group 1)
-Rashawn Slater,LAC,OT,91,Head2b,Hair1h,Beard1h,Head3a,,,medium,knowledge,needs_review,"Biracial OT (Black father, white mother); Head2b currently is slightly light. Head3a fits biracial calibration"
+Rashawn Slater,LAC,OT,91,Head2b,Hair1h,Beard1h,Head3a,,,medium,knowledge,confirmed,"Biracial OT (Black father, white mother); Head2b currently is slightly light. Head3a fits biracial calibration"
 Cameron Dicker,LAC,K,89,Head2a,Hair3e,Beard3g,,,,medium,web_search,no_change,White K; Head2a acceptable
 JK Scott,LAC,P,87,Head1d,Hair3h,Beard3h,,,,medium,web_search,no_change,White P; Head1d acceptable
 Justin Herbert,LAC,QB,85,Head2a,Hair2f,Beard2g,,,,high,knowledge,no_change,"White QB, tan California complexion; Head2a fits"
-Puka Nacua,LAR,WR,89,Head2b,Hair1f,Beard1f2,Head3a,,,medium,knowledge,needs_review,Samoan WR; Head2b currently is slightly light. Head3a better for Polynesian medium-tan tone
+Puka Nacua,LAR,WR,89,Head2b,Hair1f,Beard1f2,Head3a,,,medium,knowledge,confirmed,Samoan WR; Head2b currently is slightly light. Head3a better for Polynesian medium-tan tone
 Ethan Evans,LAR,P,86,Head1a,Hair3h,Beard3h,,,,low,web_search,needs_review,White P (rookie-era); verify tone. Head1a acceptable
 AJ Cole,LV,P,95,Head2d,Hair5h,Beard5h,,,,medium,web_search,no_change,White P with long hair; Head2d acceptable (tannest Group 2)
 Maxx Crosby,LV,DE,92,Head2b,Hair1d,Beard3a,,,,high,knowledge,no_change,"White DE with beard, tan complexion; Head2b fits"
@@ -62,11 +62,11 @@ Tyler Linderbaum,LV,C,86,Head2b,Hair3h,Beard3h,,,,medium,web_search,no_change,Wh
 Bradley Pinion,MIA,P,89,Head1c,Hair3h,Beard3h,,,,medium,web_search,no_change,White P; Head1c acceptable
 Justin Jefferson,MIN,WR,91,Head4c,Hair1s,Beard1s,,,,high,knowledge,manual_override,Curated gold standard
 Christian Darrisaw,MIN,OT,91,Head5b,Hair1h,Beard1h,,,,high,knowledge,no_change,"Black OT, darker-skinned; Head5b fits"
-Carson Wentz,MIN,QB,90,Head1d,Hair4e,Beard4e,Head1b,,,medium,knowledge,needs_review,White QB; Head1d is the darkest/tannest Group 1. Wentz has a lighter complexion; Head1b closer
+Carson Wentz,MIN,QB,90,Head1d,Hair4e,Beard4e,Head1b,,,medium,knowledge,confirmed,White QB; Head1d is the darkest/tannest Group 1. Wentz has a lighter complexion; Head1b closer
 Brian O'Neill,MIN,OT,86,Head2c,Hair1e,Beard1e,,,,medium,web_search,no_change,White OT; Head2c acceptable
 Jonathan Greenard,MIN,DE,86,Head4d,Hair1j,Beard1j,,,,high,knowledge,no_change,"Black DE, darker-skinned; Head4d fits"
 Andrew Thomas,NYG,OT,87,Head5b,Hair1h,Beard1h,,,,high,knowledge,no_change,"Black OT, darker-skinned; Head5b fits"
-Jordan Mailata,PHI,OT,96,Head3b,Hair1a,Beard1a,Head4b,,,medium,knowledge,needs_review,Samoan-Australian OT; Head3b currently is slightly light. Mailata is notably dark-brown Polynesian; Head4b closer
+Jordan Mailata,PHI,OT,96,Head3b,Hair1a,Beard1a,Head4b,,,medium,knowledge,confirmed,Samoan-Australian OT; Head3b currently is slightly light. Mailata is notably dark-brown Polynesian; Head4b closer
 Lane Johnson,PHI,OT,91,Head2d,Hair3h,Beard3h,,,,high,knowledge,no_change,"White OT with beard, tan complexion; Head2d fits"
 A.J. Brown,PHI,WR,89,Head5b,Hair1p,Beard1e,,,,high,knowledge,no_change,"Black WR, darker-skinned; Head5b fits"
 DeVonta Smith,PHI,WR,87,Head4d,Hair1n,Beard1a,,,,high,knowledge,no_change,"Black WR, darker-skinned; Head4d fits"
@@ -74,19 +74,19 @@ Jalen Hurts,PHI,QB,86,Head4b,Hair1n,Beard1e,,,,high,knowledge,no_change,"Black Q
 T.J. Watt,PIT,DE,94,Head1a,Hair3g,Beard3f1,,,,high,knowledge,no_change,"White DE, redhead; Head1a + Hair3g/Beard3f1 (red variants) correct"
 Chris Boswell,PIT,K,94,Head1d,Hair3h,Beard3h,,,,medium,web_search,no_change,White K with beard; Head1d acceptable
 Cameron Heyward,PIT,DT,91,Head4c,Hair1p,Beard1e,,,,high,knowledge,no_change,"Black DT, medium-dark; Head4c fits"
-Alex Highsmith,PIT,OLB,87,Head2a,Hair1c,Beard3d,Head4c,,,high,knowledge,needs_review,MISMATCH: Black OLB currently at Head2a (white tone). Highsmith is Black medium-dark; Head4c correct
+Alex Highsmith,PIT,OLB,87,Head2a,Hair1c,Beard3d,Head4c,,,high,knowledge,confirmed,MISMATCH: Black OLB currently at Head2a (white tone). Highsmith is Black medium-dark; Head4c correct
 Michael Dickson,SEA,P,90,Head1b,Hair1a,Beard1a,,,,high,knowledge,no_change,"Australian P, white/light complexion; Head1b fits"
 Leonard Williams,SEA,DT,88,Head4c,Hair1b,Beard1b,,,,high,knowledge,no_change,"Black DT, medium-dark; Head4c fits"
 Jason Myers,SEA,K,85,Head1c,Hair3h,Beard3h,,,,medium,web_search,no_change,White K; Head1c acceptable
 Trent Williams,SF,OT,99,Head5d,Hair1p,Beard1e,,,,high,knowledge,no_change,"Black OT, darker-skinned; Head5d (darkest Group 5) fits"
 Nick Bosa,SF,DE,94,Head1a,Hair2d,Beard2f1,,,,high,knowledge,no_change,White DE; Head1a correct
 George Kittle,SF,TE,94,Head1a,Hair4b,Beard4b,,,,high,knowledge,no_change,White TE with signature mustache/hair; Head1a + Hair4b/Beard4b fits
-Fred Warner,SF,MLB,91,Head4c,Hair1r1,Beard1g,Head3c,,,medium,knowledge,needs_review,"Biracial MLB (white father, Mexican mother); lighter-medium tone. Head4c currently is slightly dark; Head3c closer to biracial calibration"
+Fred Warner,SF,MLB,91,Head4c,Hair1r1,Beard1g,Head3c,,,medium,knowledge,confirmed,"Biracial MLB (white father, Mexican mother); lighter-medium tone. Head4c currently is slightly dark; Head3c closer to biracial calibration"
 Christian McCaffrey,SF,RB,86,Head1b,Hair2d,Beard2b,,,,high,knowledge,no_change,White RB; Head1b correct
 Brock Purdy,SF,QB,86,Head1a,Hair2c,Beard2g,,,,high,knowledge,manual_override,Curated gold standard
 Mike Evans,SF,WR,85,Head3c,Hair1p,Beard1e,,,,high,knowledge,manual_override,Curated gold standard
 Chase McLaughlin,TB,K,94,Head2a,Hair1i,Beard1i,,,,medium,web_search,no_change,White K; Head2a acceptable
-Tristan Wirfs,TB,OT,90,Head3b,Hair1b,Beard1b,Head1a,,,high,knowledge,needs_review,MISMATCH: White OT currently at Head3b (medium tone). Wirfs is a very light-complexioned white Iowan; Head1a correct
+Tristan Wirfs,TB,OT,90,Head3b,Hair1b,Beard1b,Head1a,,,high,knowledge,confirmed,MISMATCH: White OT currently at Head3b (medium tone). Wirfs is a very light-complexioned white Iowan; Head1a correct
 Antoine Winfield Jr.,TB,S,87,Head3b,Hair1q,Beard1a,,,,high,knowledge,no_change,"Black S, lighter-medium tone; Head3b fits"
 Jeffery Simmons,TEN,DT,88,Head4b,Hair1d,Beard1d,,,,high,knowledge,no_change,"Black DT, medium-dark; Head4b fits"
 Bobby Wagner,Free Agent,MLB,93,Head5d,Hair1n,Beard1e,,,,high,knowledge,no_change,"Black MLB, darker-skinned; Head5d fits"
