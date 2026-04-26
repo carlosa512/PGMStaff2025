@@ -1,6 +1,6 @@
 # NFL Reference Data for PGM3
 
-**Last pulled:** 2026-04-09 03:06:22
+**Last pulled:** 2026-04-26 07:42:59
 **Source:** nflverse (https://github.com/nflverse/nflverse-data)
 **Data updates daily at 7AM UTC** (including offseason free agency/trades)
 
