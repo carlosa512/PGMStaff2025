@@ -52,10 +52,15 @@ ABSOLUTE_RATING_CAP = 79     # overrides may not exceed this
 TODAY = date(2026, 4, 26)
 ROOKIE_DEFAULT_BIRTH = "2003-09-01"  # gives age 22 with TODAY
 
-# nflverse uses some position labels add_missing_players.POS_MAP doesn't cover.
+# nflverse uses some position labels add_missing_players.POS_MAP doesn't cover,
+# and PGM-style abbrevs in our manual picks CSV (OG/MLB) need explicit mapping.
 EXTRA_POS_MAP = {
     "EDGE": "DE",
     "IOL": "OG",
+    # PGM-style abbreviations (in case picks CSV uses them directly):
+    "OG": "G",   # POS_MAP has G->OG
+    "OLB": "LB", # POS_MAP has LB->OLB
+    "MLB": "ILB",  # POS_MAP has ILB->MLB
 }
 
 NFL_TEAMS = {
@@ -138,7 +143,10 @@ def synthesize_row(pick: dict, signed: dict | None) -> dict:
     """Build the dict shape add_missing_players.build_player() expects."""
     name = pick["player_name"].strip()
     team = pick["team"].strip()
-    pos_raw = pick["position"].strip()
+    pos_raw = (pick["position"] or "").strip().upper()
+    # build_player calls amp.POS_MAP.get(dcp, "WR"); POS_MAP keys are nflverse-
+    # style (G, LB, ILB), so translate PGM-style and EDGE to a POS_MAP-friendly key.
+    pos_dcp = EXTRA_POS_MAP.get(pos_raw, pos_raw)
 
     if signed:
         birth_date = signed.get("birth_date") or ROOKIE_DEFAULT_BIRTH
@@ -150,7 +158,7 @@ def synthesize_row(pick: dict, signed: dict | None) -> dict:
     return {
         "full_name": name,
         "team": team,
-        "depth_chart_position": pos_raw,  # normalize_position handles extras
+        "depth_chart_position": pos_dcp,
         "birth_date": birth_date,
         "jersey_number": jersey,
         "status": "ACT",
@@ -385,7 +393,6 @@ def main():
     existing_idens = {p["iden"] for p in roster}
     new_entries = []
     inplace_updates = []
-    skipped_present = []
     overrides_applied = []
     overrides_unmatched = set(overrides.keys())
     validation_issues = []
@@ -445,7 +452,12 @@ def main():
         if issues:
             validation_issues.append((pick_num, name, issues))
 
-        # Reconcile vs existing 2026 entries
+        # Reconcile vs existing 2026 entries.
+        # Rule: if an existing draftSeason=2026 entry has the same name, update
+        # in place (preserve iden). Prefer matches with draftNum<=0 (UDFA
+        # placeholders); fall back to any existing 2026 entry — these were
+        # added by a prior run of this script and should be refreshed with
+        # the latest data (positions, ratings, overrides).
         key = (forename.lower(), surname.lower())
         existing_matches = existing_2026.get(key, [])
         target = None
@@ -453,8 +465,9 @@ def main():
             if em.get("draftNum", 0) <= 0:
                 target = em
                 break
+        if target is None and existing_matches:
+            target = existing_matches[0]
         if target is not None:
-            # Update in place — preserve iden
             preserved_iden = target["iden"]
             target.clear()
             target.update(entry)
@@ -462,10 +475,6 @@ def main():
             inplace_updates.append((pick_num, name, target["teamID"]))
             existing_idens.add(preserved_iden)
             final_iden = preserved_iden
-        elif existing_matches:
-            # Real draft pick already exists — skip (don't overwrite)
-            skipped_present.append((pick_num, name))
-            final_iden = existing_matches[0]["iden"]
         else:
             new_entries.append(entry)
             existing_idens.add(entry["iden"])
@@ -487,8 +496,7 @@ def main():
             "head": entry["appearance"][0] if len(entry["appearance"]) >= 1 else "",
             "override_applied": "yes" if ov_changes else "no",
             "override_changes": ";".join(ov_changes),
-            "reconcile": ("inplace" if target is not None else
-                          "skipped_present" if existing_matches else "appended"),
+            "reconcile": "inplace" if target is not None else "appended",
             "iden": final_iden,
             "issues": ";".join(":".join(str(x) for x in i) for i in issues) if issues else "",
         })
@@ -504,7 +512,6 @@ def main():
     print(f"  Picks processed:       {len(picks)}")
     print(f"  Appended (new):        {len(new_entries)}")
     print(f"  Updated in place:      {len(inplace_updates)}")
-    print(f"  Skipped (already had real entry): {len(skipped_present)}")
     print(f"  Override applied:      {len(overrides_applied)}")
     print(f"  Overrides unmatched:   {len(overrides_unmatched)} {sorted(overrides_unmatched) if overrides_unmatched else ''}")
     print(f"  Validation issues:     {len(validation_issues)}")

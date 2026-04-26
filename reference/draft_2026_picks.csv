@@ -100,7 +100,10 @@ season,round,pick,team,player_name,position,college
 2026,3,99,SEA,Julian Neal,CB,Arkansas
 2026,3,100,JAX,Jalen Huskey,S,Maryland
 2026,4,101,LV,Jermod McCoy,CB,Tennessee
+2026,4,102,BUF,Jude Bowry,OT,Boston College
 2026,4,103,NYJ,Darrell Jackson Jr.,DT,Florida State
+2026,4,104,ARI,Kaleb Proctor,DT,Southeastern Louisiana
+2026,4,105,LAC,Brenen Thompson,WR,Mississippi State
 2026,4,106,MIN,Febechi Nwaiwu,OG,Oklahoma
 2026,4,107,SF,Gracen Halton,DT,Oklahoma
 2026,4,108,DET,Jonah Coleman,RB,Washington
@@ -121,7 +124,14 @@ season,round,pick,team,player_name,position,college
 2026,4,123,DEN,Wade Woodaz,OLB,Clemson
 2026,4,124,HOU,Malik Muhammad,CB,Texas
 2026,4,125,BUF,Skyler Bell,WR,UConn
+2026,4,126,BUF,Kaleb Elarms-Orr,OLB,TCU
+2026,4,127,PIT,Carver Willis,OG,Washington
 2026,4,128,CIN,Connor Lew,C,Auburn
+2026,4,129,CAR,Will Lee III,CB,Texas A&M
+2026,4,130,MIA,Trey Moore,OLB,Texas
+2026,4,131,LAC,Genesis Smith,S,Arizona
+2026,4,132,NO,Jeremiah Wright,OG,Auburn
+2026,4,133,BAL,Matthew Hibner,TE,SMU
 2026,4,134,ATL,Kendal Daniels,OLB,Oklahoma
 2026,4,135,IND,Bryce Boettcher,OLB,Oregon
 2026,4,136,NO,Bryce Lance,WR,North Dakota State
@@ -145,6 +155,7 @@ season,round,pick,team,player_name,position,college
 2026,5,154,SF,Jaden Dugger,OLB,Louisiana
 2026,5,155,TB,Demonte Capehart,DT,Clemson
 2026,5,156,IND,George Gumbs Jr.,DE,Florida
+2026,5,157,LV,Keith Abney II,CB,Arizona State
 2026,5,158,MIA,Michael Taaffe,S,Texas
 2026,5,159,MIN,Max Bredeson,RB,Michigan
 2026,5,160,GB,Billy Schrauth,OG,Notre Dame
@@ -180,14 +191,17 @@ season,round,pick,team,player_name,position,college
 2026,6,190,NO,Barion Brown,WR,LSU
 2026,6,191,JAX,Josh Cameron,WR,Baylor
 2026,6,192,DAL,J.C. Davis,OT,Illinois
+2026,6,193,NYG,Jack Kelly,OLB,BYU
 2026,6,194,DAL,Pat Coogan,C,Indiana
 2026,6,195,TB,Malik Benson,WR,Oregon
 2026,6,196,JAX,Dametrious Crownover,OT,Texas A&M
+2026,6,197,LAR,CJ Daniels,WR,Miami
 2026,6,198,JAX,Demond Clairborne,RB,Wake Forest
 2026,6,199,KC,Emmanuel Henderson Jr.,WR,Kansas
 2026,6,200,MIA,DJ Campbell,OG,Texas
 2026,6,201,TEN,Domani Jackson,CB,Alabama
 2026,6,202,NE,Logan Taylor,OG,Boston College
+2026,6,203,ATL,CJ Williams,WR,Stanford
 2026,6,204,LAC,Lewis Bond,WR,Boston College
 2026,6,205,ARI,Skyler Gill-Howard,DT,Texas Tech
 2026,6,206,LAC,Alex Harkey,OG,Oregon
@@ -196,6 +210,11 @@ season,round,pick,team,player_name,position,college
 2026,6,209,WAS,Matt Gulbin,C,Michigan State
 2026,6,210,PIT,Gabe Rubio,DE,Notre Dame
 2026,6,211,BAL,Ryan Eckley,P,Michigan State
+2026,6,212,NE,Namdi Obiazor,OLB,TCU
+2026,6,213,CHI,Jordan van den Berg,DT,Georgia Tech
+2026,6,214,IND,Caden Curry,DE,Ohio State
+2026,6,215,ATL,Harold Perkins Jr.,OLB,LSU
+2026,6,216,GB,Trey Smack,K,Florida
 2026,6,217,LAR,Jayden Williams,OT,Mississippi
 2026,6,218,SEA,Anthony Smith,WR,East Carolina
 2026,6,219,DET,TJ Hall,CB,Iowa
@@ -230,7 +249,10 @@ season,round,pick,team,player_name,position,college
 2026,7,248,CLE,Carsen Ryan,TE,BYU
 2026,7,249,KC,Garrett Nussmeier,QB,LSU
 2026,7,250,BAL,Rayshaun Benny,DT,Michigan
+2026,7,251,PHI,Uar Bernard,DT,IPP
+2026,7,252,PHI,Keyshawn James-Newby,DE,New Mexico
 2026,7,253,BAL,Evan Beerntsen,OG,Northwestern
 2026,7,254,IND,Deion Burks,WR,Oklahoma
+2026,7,255,SEA,Michael Dansby,CB,Arizona
 2026,7,256,DEN,Dallen Bentley,TE,Utah
 2026,7,257,DEN,Red Murdock,OLB,Buffalo
