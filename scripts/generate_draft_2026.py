@@ -44,9 +44,12 @@ OVERRIDES_CSV = REPO_ROOT / "reference" / "draft_2026_overrides.csv"
 SIGNED_ROSTER_CSV = REPO_ROOT / "reference" / "nflverse_rosters_2026.csv"
 REPORT_CSV = REPO_ROOT / "reference" / "draft_2026_apply_report.csv"
 
-# Down-year rating limits
-DOWN_YEAR_FORMULA_CAP = 76   # formula-only generation max
-ABSOLUTE_RATING_CAP = 79     # overrides may not exceed this
+# Down-year rating limits — calibrated so stored rating ≈ in-game OVR display.
+# Engine OVR drops ~5-6 below stored for picks rated >=75 (verified from
+# screenshots: Caleb Downs stored 79 -> in-game 73). Lowering both caps by 5-6
+# brings editor display within ±3 of the engine's OVR for the whole class.
+DOWN_YEAR_FORMULA_CAP = 70   # formula-only generation max
+ABSOLUTE_RATING_CAP = 74     # overrides may not exceed this
 
 # Defaults for unsigned rookies
 TODAY = date(2026, 4, 26)
