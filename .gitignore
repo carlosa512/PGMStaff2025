@@ -2,6 +2,8 @@
 reference/*.csv
 !reference/release_overrides_2026.csv
 !reference/appearance_audit.csv
+!reference/draft_2026_picks.csv
+!reference/draft_2026_overrides.csv
 reference/*.parquet
 
 # Python
