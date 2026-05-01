@@ -3,11 +3,13 @@ into PGMRoster_2026_Final.json, writing PGMRoster_2026_test.json.
 
 Rules (see CLAUDE.md and conversation):
 - 2026 rookies, draftNum 1..138 (rounds 1-4): adopt full edited record.
-- 2026 rookies, draftNum >138 or <=0 (round 5-7 + UDFA): apply only
-  appearance + teamID changes from edited.
+- 2026 rookies, draftNum >138 or <=0 (round 5-7 + UDFA): apply appearance
+  changes from edited; apply teamID changes ONLY when both old and new
+  team are real (team->team), since FA->team / team->FA moves are game-
+  engine UDFA signings/cuts, not user fixes.
 - Veterans (draftSeason != 2026): if appearance differs in edited, adopt
   full edited record; otherwise leave _Final.json record untouched.
-- New-in-edited rookies (2026 with no _Final match) are added.
+- New-in-edited rookies are NOT added (observed phantom from engine).
 - Players only in _Final (not in edited) are kept as-is.
 - After merge: sync contract display fields to engine fields per CLAUDE.md
   (salary==eSalary, guarantee==eGuarantee, length==eLength). Free Agents
@@ -91,15 +93,25 @@ def main():
             counts["no_match_kept"] += 1
             continue
 
+        is_real_team_move = (
+            e["teamID"] != f["teamID"]
+            and f["teamID"] != "Free Agent"
+            and e["teamID"] != "Free Agent"
+        )
         if is_2026_rookie(f) and is_round_1_to_4(f):
             merged = dict(e)
             # Preserve canonical name spelling/punctuation from _Final
             merged["forename"] = f["forename"]
             merged["surname"] = f["surname"]
+            # Reject engine-driven FA<->team moves; only honor team->team fixes
+            if e["teamID"] != f["teamID"] and not is_real_team_move:
+                merged["teamID"] = f["teamID"]
+                merged["teamNum"] = f.get("teamNum", e.get("teamNum"))
+                counts["engine_move_rejected"] = counts.get("engine_move_rejected", 0) + 1
+            elif is_real_team_move:
+                counts["team_change_applied"] += 1
             out.append(merged)
             counts["rookie_full_replace"] += 1
-            if e["teamID"] != f["teamID"]:
-                counts["team_change_applied"] += 1
             if e["appearance"] != f["appearance"]:
                 counts["appearance_change_applied"] += 1
         elif is_2026_rookie(f):
@@ -107,10 +119,12 @@ def main():
             if e["appearance"] != f["appearance"]:
                 merged["appearance"] = e["appearance"]
                 counts["appearance_change_applied"] += 1
-            if e["teamID"] != f["teamID"]:
+            if is_real_team_move:
                 merged["teamID"] = e["teamID"]
                 merged["teamNum"] = e.get("teamNum", f.get("teamNum"))
                 counts["team_change_applied"] += 1
+            elif e["teamID"] != f["teamID"]:
+                counts["engine_move_rejected"] = counts.get("engine_move_rejected", 0) + 1
             out.append(merged)
             counts["rookie_late_partial"] += 1
         else:
@@ -129,15 +143,11 @@ def main():
                 out.append(f)
                 counts["vet_unchanged"] += 1
 
-    # Add new-in-edited 2026 rookies (genuine UDFAs / additions)
-    added = 0
-    for k, e in emap.items():
-        if k in fmap:
-            continue
-        if is_2026_rookie(e):
-            out.append(dict(e))
-            added += 1
-    counts["new_rookies_added"] = added
+    # Do NOT add new-in-edited rookies — observed engine-fabricated phantom
+    # (Christopher Hill, draftNum 82 already used by another player).
+    counts["new_rookies_skipped"] = sum(
+        1 for k, e in emap.items() if k not in fmap and is_2026_rookie(e)
+    )
 
     # Contract sync pass
     for p in out:
